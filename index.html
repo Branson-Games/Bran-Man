@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diamond Miner Dash!</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #4a7329; /* Minecraft Grass Green */
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace; /* Blocky font feel */
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(to bottom, #5c87e7 70%, #4a7329 100%); /* Sky to Grass */
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 40px;
+            box-sizing: border-box;
+            pointer-events: none;
+        }
+
+        .hud-text {
+            color: #fff;
+            font-size: 2.2rem;
+            font-weight: bold;
+            text-shadow: 3px 3px 0px #000;
+        }
+
+        #score { color: #55ffff; } /* Diamond Blue */
+        #lives { color: #ff5555; } /* Red */
+
+        #game-canvas {
+            display: block;
+        }
+
+        /* Screen overlays */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.75);
+            color: white;
+            z-index: 10;
+            border: 10px solid #3c3c3c;
+            box-sizing: border-box;
+        }
+
+        .overlay h1 {
+            font-size: 3.5rem;
+            color: #55ff55; /* Minecraft Emerald Green */
+            margin-bottom: 10px;
+            text-align: center;
+            text-shadow: 4px 4px 0px #000;
+        }
+
+        .overlay p {
+            font-size: 1.4rem;
+            margin-bottom: 30px;
+            text-align: center;
+            max-width: 500px;
+            line-height: 1.6;
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            font-size: 1.8rem;
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            background: #00aa00;
+            color: white;
+            border: 4px solid #000;
+            box-shadow: inset -4px -4px 0px #005500, inset 4px 4px 0px #55ff55;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .btn:hover {
+            background: #55ff55;
+            color: #000;
+            box-shadow: inset -4px -4px 0px #00aa00, inset 4px 4px 0px #ffffff;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- UI Elements -->
+        <div id="ui-layer">
+            <div class="hud-text">💎 Score: <span id="score">0</span></div>
+            <div class="hud-text">❤️ Lives: <span id="lives">3</span></div>
+        </div>
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="overlay">
+            <h1>DIAMOND MINER DASH</h1>
+            <p>Catch the falling 💎 Diamonds and 🟢 Emeralds in your chest!<br><br><span style="color: #ff5555; font-weight: bold;">⚠️ AVOID THE TNT! ⚠️</span></p>
+            <button class="btn" onclick="startGame()">START GAME</button>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" class="overlay hidden">
+            <h1>GAME OVER</h1>
+            <p>You mined <span id="final-score" style="color: #55ffff; font-weight: bold;">0</span> gems!</p>
+            <button class="btn" onclick="startGame()">RESPAWN 🔄</button>
+        </div>
+
+        <!-- The Canvas -->
+        <canvas id="game-canvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // UI
+        const scoreEl = document.getElementById('score');
+        const livesEl = document.getElementById('lives');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const finalScoreEl = document.getElementById('final-score');
+
+        // Game State
+        let gameActive = false;
+        let score = 0;
+        let lives = 3;
+        let items = [];
+        let spawnTimer = 0;
+        let spawnInterval = 50; 
+        let gameSpeed = 4;
+
+        // Minecraft Chest Player
+        const chest = {
+            x: 0,
+            y: 0,
+            width: 110,
+            height: 70
+        };
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            chest.y = canvas.height - 110; // Sit on the "grass"
+            if (!gameActive && items.length === 0) {
+                chest.x = canvas.width / 2 - chest.width / 2;
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Controls
+        function moveChest(e) {
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            chest.x = clientX - chest.width / 2;
+            if (chest.x < 0) chest.x = 0;
+            if (chest.x + chest.width > canvas.width) chest.x = canvas.width - chest.width;
+        }
+        window.addEventListener('mousemove', moveChest);
+        window.addEventListener('touchmove', moveChest, { passive: true });
+
+        function startGame() {
+            score = 0;
+            lives = 3;
+            items = [];
+            gameSpeed = 5;
+            spawnInterval = 50;
+            scoreEl.textContent = score;
+            livesEl.textContent = lives;
+            
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            gameActive = true;
+            animate();
+        }
+
+        function spawnItem() {
+            const types = ['diamond', 'diamond', 'emerald', 'tnt']; // 25% chance of TNT
+            const type = types[Math.floor(Math.random() * types.length)];
+            
+            items.push({
+                x: Math.random() * (canvas.width - 60) + 10,
+                y: -40,
+                width: 40,
+                height: 40,
+                type: type,
+                speed: gameSpeed + Math.random() * 2
+            });
+        }
+
+        // Draw pixelated Chest
+        function drawChest() {
+            // Main box (Oak wood color)
+            ctx.fillStyle = '#8B5A2B';
+            ctx.fillRect(chest.x, chest.y, chest.width, chest.height);
+            // Border/edges (Darker wood)
+            ctx.strokeStyle = '#4A2F15';
+            ctx.lineWidth = 6;
+            ctx.strokeRect(chest.x + 3, chest.y + 3, chest.width - 6, chest.height - 6);
+            // Chest Lid Line
+            ctx.fillStyle = '#4A2F15';
+            ctx.fillRect(chest.x, chest.y + 22, chest.width, 6);
+            // Lock (Silver/Gray latch)
+            ctx.fillStyle = '#C0C0C0';
+            ctx.fillRect(chest.x + (chest.width / 2) - 8, chest.y + 16, 16, 18);
+            ctx.fillStyle = '#555555';
+            ctx.fillRect(chest.x + (chest.width / 2) - 4, chest.y + 24, 8, 10);
+        }
+
+        // Draw Falling Items
+        function drawItem(item) {
+            ctx.save();
+            if (item.type === 'diamond') {
+                // Diamond shape
+                ctx.fillStyle = '#55ffff';
+                ctx.beginPath();
+                ctx.moveTo(item.x + 20, item.y);
+                ctx.lineTo(item.x + 40, item.y + 15);
+                ctx.lineTo(item.x + 20, item.y + 40);
+                ctx.lineTo(item.x, item.y + 15);
+                ctx.closePath();
+                ctx.fill();
+                // Inner shine
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(item.x + 16, item.y + 10, 6, 6);
+            } else if (item.type === 'emerald') {
+                // Emerald shape
+                ctx.fillStyle = '#55ff55';
+                ctx.beginPath();
+                ctx.moveTo(item.x + 20, item.y);
+                ctx.lineTo(item.x + 38, item.y + 10);
+                ctx.lineTo(item.x + 38, item.y + 30);
+                ctx.lineTo(item.x + 20, item.y + 40);
+                ctx.lineTo(item.x + 2, item.y + 30);
+                ctx.lineTo(item.x + 2, item.y + 10);
+                ctx.closePath();
+                ctx.fill();
+            } else if (item.type === 'tnt') {
+                // TNT Block
+                ctx.fillStyle = '#ff5555'; // Red
+                ctx.fillRect(item.x, item.y, 40, 40);
+                // White stripe
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(item.x, item.y + 12, 40, 16);
+                // TNT Text
+                ctx.fillStyle = '#000000';
+                ctx.font = 'bold 11px Arial';
+                ctx.fillText('TNT', item.x + 7, item.y + 25);
+                // Top/Bottom fuses lines
+                ctx.fillStyle = '#3c3c3c';
+                ctx.fillRect(item.x + 5, item.y, 4, 4);
+                ctx.fillRect(item.x + 20, item.y, 4, 4);
+                ctx.fillRect(item.x + 30, item.y, 4, 4);
+            }
+            ctx.restore();
+        }
+
+        // Main Loop
+        function animate() {
+            if (!gameActive) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Bedrock/Dirt Ground at bottom
+            ctx.fillStyle = '#866043'; // Dirt
+            ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+            ctx.fillStyle = '#578b32'; // Grass top layer
+            ctx.fillRect(0, canvas.height - 40, canvas.width, 10);
+
+            drawChest();
+
+            // Spawn Logic
+            spawnTimer++;
+            if (spawnTimer >= spawnInterval) {
+                spawnItem();
+                spawnTimer = 0;
+                if (spawnInterval > 20) spawnInterval -= 0.4;
+            }
+
+            // Update Items
+            for (let i = items.length - 1; i >= 0; i--) {
+                let item = items[i];
+                item.y += item.speed;
+
+                drawItem(item);
+
+                // Collision with Chest
+                if (item.y + item.height >= chest.y && 
+                    item.y <= chest.y + chest.height &&
+                    item.x + item.width >= chest.x && 
+                    item.x <= chest.x + chest.width) {
+                    
+                    items.splice(i, 1);
+
+                    if (item.type === 'tnt') {
+                        lives--;
+                        livesEl.textContent = lives;
+                    } else {
+                        score += (item.type === 'emerald') ? 2 : 1; // Emeralds give 2 points!
+                        scoreEl.textContent = score;
+                        if (score % 6 === 0) gameSpeed += 0.4;
+                    }
+
+                    if (lives <= 0) {
+                        gameActive = false;
+                        finalScoreEl.textContent = score;
+                        gameOverScreen.classList.remove('hidden');
+                    }
+                    continue;
+                }
+
+                // Hit the ground
+                if (item.y > canvas.height - 40) {
+                    items.splice(i, 1);
+                    
+                    // Only lose a life if it was a good gem that got away
+                    if (item.type !== 'tnt') {
+                        lives--;
+                        livesEl.textContent = lives;
+                        if (lives <= 0) {
+                            gameActive = false;
+                            finalScoreEl.textContent = score;
+                            gameOverScreen.classList.remove('hidden');
+                        }
+                    }
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+    </script>
+</body>
+</html>
