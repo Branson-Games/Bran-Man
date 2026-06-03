@@ -5,8 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Diamond Miner Dash!</title>
     
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' fill='%232c2c2c'/><path d='M90 30 L140 75 L90 150 L40 75 Z' fill='%2355ffff' stroke='%2300aaaa' stroke-width='8'/><rect x='75' y='55' width='20' height='20' fill='%23ffffff'/></svg>">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' fill='%232c2c2c'/><path d='M90 30 L140 75 L90 150 L40 75 Z' fill='%2355ffff' stroke='%2300aaaa' stroke-width='8'/><rect x='75' y='55' width='20' height='20' fill='%23ffffff'/></svg>">
+    <!-- Dynamic PNG Icon Generator for iPad -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const c = document.createElement('canvas'); c.width = 180; c.height = 180;
+            const ctx = c.getContext('2d');
+            // Background Block
+            ctx.fillStyle = '#2c2c2c'; ctx.fillRect(0, 0, 180, 180);
+            // Diamond Shape
+            ctx.fillStyle = '#55ffff'; ctx.beginPath(); ctx.moveTo(90, 25); ctx.lineTo(155, 80); ctx.lineTo(90, 155); ctx.lineTo(25, 80); ctx.closePath(); ctx.fill();
+            // Border Depth
+            ctx.strokeStyle = '#00aaaa'; ctx.lineWidth = 8; ctx.stroke();
+            // Shiny Glint
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(75, 55, 20, 20);
+            // Turn into a real PNG and inject
+            const url = c.toDataURL('image/png');
+            let l1 = document.createElement('link'); l1.rel = 'apple-touch-icon'; l1.href = url; document.head.appendChild(l1);
+            let l2 = document.createElement('link'); l2.rel = 'icon'; l2.type = 'image/png'; l2.href = url; document.head.appendChild(l2);
+        });
+    </script>
 
     <style>
         body {
@@ -163,7 +180,6 @@
         function playSound(type) {
             if (!audioCtx) return;
             
-            // Resume context if browser paused it
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
@@ -174,16 +190,14 @@
             gain.connect(audioCtx.destination);
 
             if (type === 'gem') {
-                // Happy 8-bit pickup ding
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.08); // A5
+                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.08);
                 gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
                 osc.start();
                 osc.stop(audioCtx.currentTime + 0.25);
             } else if (type === 'tnt') {
-                // Explosive crash sound
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(180, audioCtx.currentTime);
                 osc.frequency.linearRampToValueAtTime(10, audioCtx.currentTime + 0.5);
@@ -192,7 +206,6 @@
                 osc.start();
                 osc.stop(audioCtx.currentTime + 0.5);
             } else if (type === 'miss') {
-                // Disappointment buzz
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(220, audioCtx.currentTime);
                 osc.frequency.setValueAtTime(147, audioCtx.currentTime + 0.15);
@@ -226,7 +239,7 @@
         window.addEventListener('touchmove', moveChest, { passive: true });
 
         function startGame() {
-            initAudio(); // Activate sound system on button click
+            initAudio(); 
             score = 0;
             lives = 3;
             items = [];
@@ -257,15 +270,14 @@
             });
         }
 
-        // Spawn Blocky TNT Particles
         function makeExplosion(x, y) {
-            screenShake = 15; // Trigger camera rumble
+            screenShake = 15; 
             for (let i = 0; i < 30; i++) {
                 particles.push({
                     x: x,
                     y: y,
                     vx: (Math.random() - 0.5) * 12,
-                    vy: (Math.random() - 0.5) * 12 - 3, // Blast slightly upwards
+                    vy: (Math.random() - 0.5) * 12 - 3, 
                     size: Math.random() * 10 + 6,
                     color: ['#ff3333', '#ff9900', '#ffcc00', '#ffffff', '#3c3c3c'][Math.floor(Math.random() * 5)],
                     life: 25 + Math.random() * 15
@@ -339,18 +351,16 @@
             if (!gameActive) return;
 
             ctx.save();
-            // Screen Shake Effect
             if (screenShake > 0) {
                 let dx = (Math.random() - 0.5) * screenShake;
                 let dy = (Math.random() - 0.5) * screenShake;
                 ctx.translate(dx, dy);
-                screenShake *= 0.9; // Smoothly calm down the shaking
+                screenShake *= 0.9; 
                 if (screenShake < 0.5) screenShake = 0;
             }
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Sky background logic within clear
             ctx.fillStyle = '#866043'; 
             ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
             ctx.fillStyle = '#578b32'; 
@@ -365,14 +375,12 @@
                 if (spawnInterval > 20) spawnInterval -= 0.4;
             }
 
-            // Handle Falling Items
             for (let i = items.length - 1; i >= 0; i--) {
                 let item = items[i];
                 item.y += item.speed;
 
                 drawItem(item);
 
-                // Collision with Chest
                 if (item.y + item.height >= chest.y && 
                     item.y <= chest.y + chest.height &&
                     item.x + item.width >= chest.x && 
@@ -396,7 +404,6 @@
                     continue;
                 }
 
-                // Hit the ground (Missed gems)
                 if (item.y > canvas.height - 40) {
                     items.splice(i, 1);
                     
@@ -409,7 +416,6 @@
                 }
             }
 
-            // Update & Render Explosion Particles
             for (let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
                 p.x += p.vx;
@@ -417,7 +423,7 @@
                 p.life--;
                 
                 ctx.fillStyle = p.color;
-                ctx.fillRect(p.x, p.y, p.size, p.size); // Blocky particles
+                ctx.fillRect(p.x, p.y, p.size, p.size);
 
                 if (p.life <= 0) {
                     particles.splice(i, 1);
