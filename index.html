@@ -4,13 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Diamond Miner Dash!</title>
+    
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' fill='%232c2c2c'/><path d='M90 30 L140 75 L90 150 L40 75 Z' fill='%2355ffff' stroke='%2300aaaa' stroke-width='8'/><rect x='75' y='55' width='20' height='20' fill='%23ffffff'/></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' fill='%232c2c2c'/><path d='M90 30 L140 75 L90 150 L40 75 Z' fill='%2355ffff' stroke='%2300aaaa' stroke-width='8'/><rect x='75' y='55' width='20' height='20' fill='%23ffffff'/></svg>">
+
     <style>
         body {
             margin: 0;
             padding: 0;
-            background: #4a7329; /* Minecraft Grass Green */
+            background: #4a7329;
             overflow: hidden;
-            font-family: 'Courier New', Courier, monospace; /* Blocky font feel */
+            font-family: 'Courier New', Courier, monospace;
             user-select: none;
         }
 
@@ -18,7 +22,7 @@
             position: relative;
             width: 100vw;
             height: 100vh;
-            background: linear-gradient(to bottom, #5c87e7 70%, #4a7329 100%); /* Sky to Grass */
+            background: linear-gradient(to bottom, #5c87e7 70%, #4a7329 100%);
         }
 
         #ui-layer {
@@ -40,14 +44,13 @@
             text-shadow: 3px 3px 0px #000;
         }
 
-        #score { color: #55ffff; } /* Diamond Blue */
-        #lives { color: #ff5555; } /* Red */
+        #score { color: #55ffff; }
+        #lives { color: #ff5555; }
 
         #game-canvas {
             display: block;
         }
 
-        /* Screen overlays */
         .overlay {
             position: absolute;
             top: 0;
@@ -67,7 +70,7 @@
 
         .overlay h1 {
             font-size: 3.5rem;
-            color: #55ff55; /* Minecraft Emerald Green */
+            color: #55ff55;
             margin-bottom: 10px;
             text-align: center;
             text-shadow: 4px 4px 0px #000;
@@ -92,7 +95,6 @@
             border: 4px solid #000;
             box-shadow: inset -4px -4px 0px #005500, inset 4px 4px 0px #55ff55;
             cursor: pointer;
-            transition: background 0.1s;
         }
 
         .btn:hover {
@@ -109,27 +111,23 @@
 <body>
 
     <div id="game-container">
-        <!-- UI Elements -->
         <div id="ui-layer">
             <div class="hud-text">💎 Score: <span id="score">0</span></div>
             <div class="hud-text">❤️ Lives: <span id="lives">3</span></div>
         </div>
 
-        <!-- Start Screen -->
         <div id="start-screen" class="overlay">
             <h1>DIAMOND MINER DASH</h1>
-            <p>Catch the falling 💎 Diamonds and 🟢 Emeralds in your chest!<br><br><span style="color: #ff5555; font-weight: bold;">⚠️ AVOID THE TNT! ⚠️</span></p>
+            <p>Catch the falling 💎 Diamonds and 🟢 Emeralds!<br><br><span style="color: #ff5555; font-weight: bold;">⚠️ AVOID THE TNT! ⚠️</span></p>
             <button class="btn" onclick="startGame()">START GAME</button>
         </div>
 
-        <!-- Game Over Screen -->
         <div id="game-over-screen" class="overlay hidden">
             <h1>GAME OVER</h1>
             <p>You mined <span id="final-score" style="color: #55ffff; font-weight: bold;">0</span> gems!</p>
             <button class="btn" onclick="startGame()">RESPAWN 🔄</button>
         </div>
 
-        <!-- The Canvas -->
         <canvas id="game-canvas"></canvas>
     </div>
 
@@ -137,34 +135,80 @@
         const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d');
         
-        // UI
         const scoreEl = document.getElementById('score');
         const livesEl = document.getElementById('lives');
         const startScreen = document.getElementById('start-screen');
         const gameOverScreen = document.getElementById('game-over-screen');
         const finalScoreEl = document.getElementById('final-score');
 
-        // Game State
         let gameActive = false;
         let score = 0;
         let lives = 3;
         let items = [];
+        let particles = [];
         let spawnTimer = 0;
         let spawnInterval = 50; 
         let gameSpeed = 4;
+        let screenShake = 0;
 
-        // Minecraft Chest Player
-        const chest = {
-            x: 0,
-            y: 0,
-            width: 110,
-            height: 70
-        };
+        // Sound System (Built-in Synthesizer)
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            
+            // Resume context if browser paused it
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'gem') {
+                // Happy 8-bit pickup ding
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.08); // A5
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.25);
+            } else if (type === 'tnt') {
+                // Explosive crash sound
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(10, audioCtx.currentTime + 0.5);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.5);
+            } else if (type === 'miss') {
+                // Disappointment buzz
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(147, audioCtx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            }
+        }
+
+        const chest = { x: 0, y: 0, width: 110, height: 70 };
 
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            chest.y = canvas.height - 110; // Sit on the "grass"
+            chest.y = canvas.height - 110;
             if (!gameActive && items.length === 0) {
                 chest.x = canvas.width / 2 - chest.width / 2;
             }
@@ -172,7 +216,6 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
-        // Controls
         function moveChest(e) {
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
             chest.x = clientX - chest.width / 2;
@@ -183,11 +226,14 @@
         window.addEventListener('touchmove', moveChest, { passive: true });
 
         function startGame() {
+            initAudio(); // Activate sound system on button click
             score = 0;
             lives = 3;
             items = [];
+            particles = [];
             gameSpeed = 5;
             spawnInterval = 50;
+            screenShake = 0;
             scoreEl.textContent = score;
             livesEl.textContent = lives;
             
@@ -198,7 +244,7 @@
         }
 
         function spawnItem() {
-            const types = ['diamond', 'diamond', 'emerald', 'tnt']; // 25% chance of TNT
+            const types = ['diamond', 'diamond', 'emerald', 'tnt'];
             const type = types[Math.floor(Math.random() * types.length)];
             
             items.push({
@@ -211,30 +257,39 @@
             });
         }
 
-        // Draw pixelated Chest
+        // Spawn Blocky TNT Particles
+        function makeExplosion(x, y) {
+            screenShake = 15; // Trigger camera rumble
+            for (let i = 0; i < 30; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.5) * 12 - 3, // Blast slightly upwards
+                    size: Math.random() * 10 + 6,
+                    color: ['#ff3333', '#ff9900', '#ffcc00', '#ffffff', '#3c3c3c'][Math.floor(Math.random() * 5)],
+                    life: 25 + Math.random() * 15
+                });
+            }
+        }
+
         function drawChest() {
-            // Main box (Oak wood color)
             ctx.fillStyle = '#8B5A2B';
             ctx.fillRect(chest.x, chest.y, chest.width, chest.height);
-            // Border/edges (Darker wood)
             ctx.strokeStyle = '#4A2F15';
             ctx.lineWidth = 6;
             ctx.strokeRect(chest.x + 3, chest.y + 3, chest.width - 6, chest.height - 6);
-            // Chest Lid Line
             ctx.fillStyle = '#4A2F15';
             ctx.fillRect(chest.x, chest.y + 22, chest.width, 6);
-            // Lock (Silver/Gray latch)
             ctx.fillStyle = '#C0C0C0';
             ctx.fillRect(chest.x + (chest.width / 2) - 8, chest.y + 16, 16, 18);
             ctx.fillStyle = '#555555';
             ctx.fillRect(chest.x + (chest.width / 2) - 4, chest.y + 24, 8, 10);
         }
 
-        // Draw Falling Items
         function drawItem(item) {
             ctx.save();
             if (item.type === 'diamond') {
-                // Diamond shape
                 ctx.fillStyle = '#55ffff';
                 ctx.beginPath();
                 ctx.moveTo(item.x + 20, item.y);
@@ -243,11 +298,9 @@
                 ctx.lineTo(item.x, item.y + 15);
                 ctx.closePath();
                 ctx.fill();
-                // Inner shine
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(item.x + 16, item.y + 10, 6, 6);
             } else if (item.type === 'emerald') {
-                // Emerald shape
                 ctx.fillStyle = '#55ff55';
                 ctx.beginPath();
                 ctx.moveTo(item.x + 20, item.y);
@@ -259,17 +312,13 @@
                 ctx.closePath();
                 ctx.fill();
             } else if (item.type === 'tnt') {
-                // TNT Block
-                ctx.fillStyle = '#ff5555'; // Red
+                ctx.fillStyle = '#ff5555';
                 ctx.fillRect(item.x, item.y, 40, 40);
-                // White stripe
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(item.x, item.y + 12, 40, 16);
-                // TNT Text
                 ctx.fillStyle = '#000000';
                 ctx.font = 'bold 11px Arial';
                 ctx.fillText('TNT', item.x + 7, item.y + 25);
-                // Top/Bottom fuses lines
                 ctx.fillStyle = '#3c3c3c';
                 ctx.fillRect(item.x + 5, item.y, 4, 4);
                 ctx.fillRect(item.x + 20, item.y, 4, 4);
@@ -278,21 +327,37 @@
             ctx.restore();
         }
 
-        // Main Loop
+        function checkGameOver() {
+            if (lives <= 0) {
+                gameActive = false;
+                finalScoreEl.textContent = score;
+                gameOverScreen.classList.remove('hidden');
+            }
+        }
+
         function animate() {
             if (!gameActive) return;
 
+            ctx.save();
+            // Screen Shake Effect
+            if (screenShake > 0) {
+                let dx = (Math.random() - 0.5) * screenShake;
+                let dy = (Math.random() - 0.5) * screenShake;
+                ctx.translate(dx, dy);
+                screenShake *= 0.9; // Smoothly calm down the shaking
+                if (screenShake < 0.5) screenShake = 0;
+            }
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Draw Bedrock/Dirt Ground at bottom
-            ctx.fillStyle = '#866043'; // Dirt
+            // Sky background logic within clear
+            ctx.fillStyle = '#866043'; 
             ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
-            ctx.fillStyle = '#578b32'; // Grass top layer
+            ctx.fillStyle = '#578b32'; 
             ctx.fillRect(0, canvas.height - 40, canvas.width, 10);
 
             drawChest();
 
-            // Spawn Logic
             spawnTimer++;
             if (spawnTimer >= spawnInterval) {
                 spawnItem();
@@ -300,7 +365,7 @@
                 if (spawnInterval > 20) spawnInterval -= 0.4;
             }
 
-            // Update Items
+            // Handle Falling Items
             for (let i = items.length - 1; i >= 0; i--) {
                 let item = items[i];
                 item.y += item.speed;
@@ -316,39 +381,50 @@
                     items.splice(i, 1);
 
                     if (item.type === 'tnt') {
+                        playSound('tnt');
+                        makeExplosion(item.x + 20, item.y + 20);
                         lives--;
                         livesEl.textContent = lives;
                     } else {
-                        score += (item.type === 'emerald') ? 2 : 1; // Emeralds give 2 points!
+                        playSound('gem');
+                        score += (item.type === 'emerald') ? 2 : 1;
                         scoreEl.textContent = score;
                         if (score % 6 === 0) gameSpeed += 0.4;
                     }
 
-                    if (lives <= 0) {
-                        gameActive = false;
-                        finalScoreEl.textContent = score;
-                        gameOverScreen.classList.remove('hidden');
-                    }
+                    checkGameOver();
                     continue;
                 }
 
-                // Hit the ground
+                // Hit the ground (Missed gems)
                 if (item.y > canvas.height - 40) {
                     items.splice(i, 1);
                     
-                    // Only lose a life if it was a good gem that got away
                     if (item.type !== 'tnt') {
+                        playSound('miss');
                         lives--;
                         livesEl.textContent = lives;
-                        if (lives <= 0) {
-                            gameActive = false;
-                            finalScoreEl.textContent = score;
-                            gameOverScreen.classList.remove('hidden');
-                        }
+                        checkGameOver();
                     }
                 }
             }
 
+            // Update & Render Explosion Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+                
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.size, p.size); // Blocky particles
+
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            ctx.restore();
             requestAnimationFrame(animate);
         }
     </script>
