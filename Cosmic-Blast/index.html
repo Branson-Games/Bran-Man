@@ -1,1 +1,436 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BRAN-MAN: Galaxy Defender!</title>
+    
+    <!-- Dynamic PNG Icon Generator for iPad (Custom B-Ship Icon) -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const c = document.createElement('canvas'); c.width = 180; c.height = 180;
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#0b0b1a'; ctx.fillRect(0, 0, 180, 180);
+            ctx.fillStyle = '#ff5555'; ctx.beginPath(); ctx.moveTo(90, 25); ctx.lineTo(130, 110); ctx.lineTo(50, 110); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(75, 110, 30, 30);
+            ctx.fillStyle = '#ffff55'; ctx.font = 'bold 40px Courier New'; ctx.fillText('B', 78, 95);
+            const url = c.toDataURL('image/png');
+            let l1 = document.createElement('link'); l1.rel = 'apple-touch-icon'; l1.href = url; document.head.appendChild(l1);
+            let l2 = document.createElement('link'); l2.rel = 'icon'; l2.type = 'image/png'; l2.href = url; document.head.appendChild(l2);
+        });
+    </script>
+
+    <style>
+        body {
+            margin: 0; padding: 0; background: #000; overflow: hidden;
+            font-family: 'Courier New', Courier, monospace; user-select: none;
+        }
+        #game-container { position: relative; width: 100vw; height: 100vh; background: #050510; }
+        
+        #ui-layer {
+            position: absolute; top: 20px; left: 0; width: 100%;
+            display: flex; justify-content: space-between; padding: 0 30px;
+            box-sizing: border-box; z-index: 5;
+        }
+        .hud-group { display: flex; flex-direction: column; gap: 5px; pointer-events: none; }
+        .hud-text { color: #fff; font-size: 1.8rem; font-weight: bold; text-shadow: 2px 2px 0px #000; }
+        #score { color: #55ff55; }
+        
+        /* Make Lives clickable for the secret cheat code */
+        #lives-ui { color: #ff5555; cursor: pointer; pointer-events: auto; } 
+        #level-ui { color: #ffff55; pointer-events: none; }
+        
+        #powerup-ui { color: #ffaa00; font-size: 1.2rem; min-height: 20px; }
+        #game-canvas { display: block; }
+        
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: rgba(5, 5, 15, 0.9); color: white; z-index: 10;
+            border: 8px solid #ffff55; box-sizing: border-box;
+        }
+        .overlay h1 { font-size: 3.2rem; color: #ffff55; margin-bottom: 10px; text-align: center; text-shadow: 4px 4px 0px #000; }
+        .overlay p { font-size: 1.2rem; margin-bottom: 30px; text-align: center; max-width: 550px; line-height: 1.6; text-shadow: 2px 2px 0px #000; }
+        .btn {
+            padding: 15px 35px; font-size: 1.6rem; font-weight: bold; font-family: 'Courier New', Courier, monospace;
+            background: #ffaa00; color: black; border: 4px solid #000;
+            box-shadow: inset -4px -4px 0px #aa5500, inset 4px 4px 0px #ffff55; cursor: pointer;
+        }
+        .btn:hover { background: #ffff55; color: #000; box-shadow: inset -4px -4px 0px #ffaa00, inset 4px 4px 0px #ffffff; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="ui-layer">
+            <div class="hud-group">
+                <div class="hud-text">💥 Score: <span id="score">0</span></div>
+                <div class="hud-text" id="powerup-ui"></div>
+            </div>
+            <div class="hud-text" id="level-ui">🌌 Sector: <span id="level">1</span></div>
+            <!-- Clickable element for the developer hack -->
+            <div class="hud-text" id="lives-ui" onclick="triggerCheat()">❤️ Lives: <span id="lives">3</span></div>
+        </div>
+
+        <div id="start-screen" class="overlay">
+            <h1>BRAN-MAN: GALAXY DEFENDER</h1>
+            <p>Welcome Commander Branson!<br><br>Slide your finger to steer your custom starship.<br>Auto-lasers will instantly target incoming space asteroids!<br>Grab ⚡ icons for Hyper Triple-Fire power.</p>
+            <button class="btn" onclick="startGame()">LAUNCH BRAN-SHIP 🚀</button>
+        </div>
+
+        <div id="game-over-screen" class="overlay hidden">
+            <h1>BRAN-SHIP DESTROYED</h1>
+            <p>Legendary run, Branson! You defended the sector up to Level <span id="final-level" style="color:#ffff55;">1</span> with <span id="final-score" style="color:#55ff55;">0</span> points!</p>
+            <button class="btn" onclick="startGame()">RESPAWN SHIP 🔄</button>
+        </div>
+
+        <canvas id="game-canvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        const scoreEl = document.getElementById('score');
+        const levelEl = document.getElementById('level');
+        const livesEl = document.getElementById('lives');
+        const powerupUi = document.getElementById('powerup-ui');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const finalScoreEl = document.getElementById('final-score');
+        const finalLevelEl = document.getElementById('final-level');
+
+        let gameActive = false;
+        let score = 0;
+        let lives = 3;
+        let currentLevel = 1;
+        
+        let player = { x: 0, y: 0, width: 65, height: 55 };
+        let lasers = [];
+        let enemies = [];
+        let particles = [];
+        let powerups = [];
+        
+        let fireTimer = 0;
+        let spawnTimer = 0;
+        let screenShake = 0;
+        let levelUpTimer = 0;
+        let tripleLaserTimer = 0;
+        let cheatBannerTimer = 0;
+
+        // Sound Processor Engine
+        let audioCtx = null;
+        function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+        
+        function playSound(type) {
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+
+            if (type === 'laser') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(450, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(900, audioCtx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.08);
+            } else if (type === 'hit') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(30, audioCtx.currentTime + 0.12);
+                gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.12);
+            } else if (type === 'explode') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(90, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(10, audioCtx.currentTime + 0.4);
+                gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+            } else if (type === 'powerup') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(261, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(329, audioCtx.currentTime + 0.08);
+                osc.frequency.setValueAtTime(392, audioCtx.currentTime + 0.16);
+                osc.frequency.setValueAtTime(523, audioCtx.currentTime + 0.24);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.35);
+            }
+        }
+
+        // SECRET DEV HACK FUNCTION
+        function triggerCheat() {
+            if (!gameActive) return;
+            lives += 5;
+            tripleLaserTimer = 600; // 10 whole seconds of doom lasers
+            livesEl.textContent = lives;
+            cheatBannerTimer = 90; // Flash banner
+            playSound('powerup');
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            player.y = canvas.height - 110;
+            if (!gameActive) player.x = canvas.width / 2 - player.width / 2;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function handleMove(e) {
+            if (!gameActive) return;
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            player.x = clientX - player.width / 2;
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+        }
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('touchmove', handleMove, { passive: true });
+
+        function startGame() {
+            initAudio();
+            score = 0; lives = 3; currentLevel = 1;
+            lasers = []; enemies = []; particles = []; powerups = [];
+            fireTimer = 0; spawnTimer = 0; tripleLaserTimer = 0; levelUpTimer = 0; cheatBannerTimer = 0;
+            
+            scoreEl.textContent = score; livesEl.textContent = lives; levelEl.textContent = currentLevel;
+            powerupUi.textContent = "";
+            startScreen.classList.add('hidden'); gameOverScreen.classList.add('hidden');
+            gameActive = true;
+            animate();
+        }
+
+        function spawnEnemy() {
+            let isAlien = Math.random() < 0.22 + (currentLevel * 0.05);
+            if (isAlien) {
+                enemies.push({
+                    x: Math.random() * (canvas.width - 50) + 10, y: -40,
+                    width: 45, height: 35, type: 'alien',
+                    hp: 2, speed: 2.5 + currentLevel * 0.5,
+                    shootTimer: Math.random() * 50
+                });
+            } else {
+                let size = Math.random() * 35 + 35;
+                enemies.push({
+                    x: Math.random() * (canvas.width - size), y: -size,
+                    width: size, height: size, type: 'asteroid',
+                    hp: Math.ceil(size / 18), speed: 2 + Math.random() * 2 + currentLevel * 0.3
+                });
+            }
+        }
+
+        function makeExplosion(x, y, colorPool, count = 20) {
+            screenShake = 10;
+            let pool = colorPool || ['#ff5555', '#ffaa00', '#ffff55', '#ffffff'];
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12,
+                    size: Math.random() * 6 + 4, color: pool[Math.floor(Math.random() * pool.length)],
+                    life: 20 + Math.random() * 15
+                });
+            }
+        }
+
+        function getSpaceBg() {
+            if (currentLevel === 1) return '#050515';
+            if (currentLevel === 2) return '#120224'; 
+            if (currentLevel === 3) return '#240202'; 
+            return '#011c11'; 
+        }
+
+        function drawPlayer() {
+            ctx.save();
+            // Engine plume
+            ctx.fillStyle = Math.random() > 0.5 ? '#ffff55' : '#ff3300';
+            ctx.fillRect(player.x + player.width/2 - 8, player.y + player.height, 16, 18);
+            
+            // Custom Wings
+            ctx.fillStyle = '#ff5555';
+            ctx.beginPath(); ctx.moveTo(player.x, player.y + player.height); ctx.lineTo(player.x + player.width, player.y + player.height);
+            ctx.lineTo(player.x + player.width/2, player.y + player.height - 20); ctx.closePath(); ctx.fill();
+            
+            // Core Fuselage
+            ctx.fillStyle = (tripleLaserTimer > 0) ? '#ffaa00' : '#ffffff';
+            ctx.beginPath(); ctx.moveTo(player.x + player.width/2, player.y);
+            ctx.lineTo(player.x + player.width - 14, player.y + player.height);
+            ctx.lineTo(player.x + 14, player.y + player.height); ctx.closePath(); ctx.fill();
+            
+            // THE "B" FOR BRAN-MAN CUSTOM DECAL
+            ctx.fillStyle = '#ffff55';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('B', player.x + player.width/2, player.y + 40);
+
+            // Cockpit glass
+            ctx.fillStyle = '#55ffff';
+            ctx.fillRect(player.x + player.width/2 - 5, player.y + 14, 10, 10);
+            ctx.restore();
+        }
+
+        function drawEnemy(e) {
+            ctx.save();
+            if (e.type === 'asteroid') {
+                ctx.fillStyle = '#555566'; ctx.strokeStyle = '#333344'; ctx.lineWidth = 4;
+                ctx.fillRect(e.x, e.y, e.width, e.height);
+                ctx.strokeRect(e.x, e.y, e.width, e.height);
+                ctx.fillStyle = '#222233'; ctx.fillRect(e.x + e.width*0.2, e.y + e.height*0.3, e.width*0.4, e.width*0.2);
+            } else if (e.type === 'alien') {
+                ctx.fillStyle = '#55ff55'; ctx.fillRect(e.x, e.y + 8, e.width, e.height - 12);
+                ctx.fillStyle = '#00aa00'; ctx.fillRect(e.x + 8, e.y, e.width - 16, e.height);
+                ctx.fillStyle = '#ff3333'; ctx.fillRect(e.x + 10, e.y + 10, 6, 6); ctx.fillRect(e.x + e.width - 16, e.y + 10, 6, 6);
+            }
+            ctx.restore();
+        }
+
+        function checkGameOver() {
+            if (lives <= 0) {
+                gameActive = false; finalScoreEl.textContent = score; finalLevelEl.textContent = currentLevel;
+                gameOverScreen.classList.remove('hidden');
+            }
+        }
+
+        function animate() {
+            if (!gameActive) return;
+
+            ctx.save();
+            if (screenShake > 0) {
+                ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+                screenShake *= 0.85; if (screenShake < 0.5) screenShake = 0;
+            }
+
+            ctx.fillStyle = getSpaceBg(); ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Stars background scrolling effect
+            ctx.fillStyle = '#fff';
+            for (let i = 0; i < 20; i++) {
+                let sX = (Math.sin(i + Date.now()*0.0008) + 1) * 0.5 * canvas.width;
+                let sY = ((i * 157) % canvas.height);
+                ctx.fillRect(sX, sY, 2, 3);
+            }
+
+            drawPlayer();
+
+            if (tripleLaserTimer > 0) {
+                tripleLaserTimer--;
+                powerupUi.textContent = `⚡ TRIPLE LASERS: ${Math.ceil(tripleLaserTimer / 60)}s`;
+                if (tripleLaserTimer <= 0) powerupUi.textContent = "";
+            }
+
+            // Automatic laser cycles
+            fireTimer++;
+            if (fireTimer >= 13) { 
+                playSound('laser');
+                if (tripleLaserTimer > 0) {
+                    lasers.push({ x: player.x + player.width/2 - 2, y: player.y, vx: 0, vy: -10, type: 'player' });
+                    lasers.push({ x: player.x + 4, y: player.y + 15, vx: -3, vy: -9, type: 'player' });
+                    lasers.push({ x: player.x + player.width - 8, y: player.y + 15, vx: 3, vy: -9, type: 'player' });
+                } else {
+                    lasers.push({ x: player.x + 10, y: player.y + 10, vx: 0, vy: -10, type: 'player' });
+                    lasers.push({ x: player.x + player.width - 14, y: player.y + 10, vx: 0, vy: -10, type: 'player' });
+                }
+                fireTimer = 0;
+            }
+
+            spawnTimer++;
+            if (spawnTimer >= Math.max(20, 55 - currentLevel * 5)) {
+                spawnEnemy(); spawnTimer = 0;
+            }
+
+            for (let i = lasers.length - 1; i >= 0; i--) {
+                let l = lasers[i]; l.x += l.vx; l.y += l.vy;
+                ctx.fillStyle = l.type === 'player' ? '#ffff55' : '#ff3333';
+                ctx.fillRect(l.x, l.y, 4, 16);
+
+                if (l.y < -20 || l.y > canvas.height + 20) { lasers.splice(i, 1); continue; }
+
+                if (l.type === 'alien' && l.x >= player.x && l.x <= player.x + player.width && l.y >= player.y && l.y <= player.y + player.height) {
+                    lasers.splice(i, 1); playSound('hit'); makeExplosion(player.x + player.width/2, player.y + player.height/2, ['#ff3333', '#ffffff']);
+                    lives--; livesEl.textContent = lives; checkGameOver(); continue;
+                }
+            }
+
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                let p = powerups[i]; p.y += 3.5;
+                ctx.fillStyle = '#ffaa00'; ctx.beginPath(); ctx.arc(p.x, p.y, 15, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 16px Arial'; ctx.fillText('⚡', p.x - 5, p.y + 6);
+
+                if (p.y > player.y && p.y <= player.y + player.height && p.x >= player.x && p.x <= player.x + player.width) {
+                    powerups.splice(i, 1); playSound('powerup'); tripleLaserTimer = 480; 
+                    continue;
+                }
+                if (p.y > canvas.height) powerups.splice(i, 1);
+            }
+
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                let e = enemies[i]; e.y += e.speed;
+                drawEnemy(e);
+
+                if (e.type === 'alien') {
+                    e.shootTimer++;
+                    if (e.shootTimer >= 60) {
+                        lasers.push({ x: e.x + e.width/2, y: e.y + e.height, vx: 0, vy: 5.5, type: 'alien' });
+                        e.shootTimer = 0;
+                    }
+                }
+
+                if (e.y + e.height >= player.y && e.y <= player.y + player.height && e.x + e.width >= player.x && e.x <= player.x + player.width) {
+                    enemies.splice(i, 1); playSound('explode'); makeExplosion(e.x + e.width/2, e.y + e.height/2, null, 35);
+                    lives--; livesEl.textContent = lives; checkGameOver(); continue;
+                }
+
+                for (let j = lasers.length - 1; j >= 0; j--) {
+                    let l = lasers[j];
+                    if (l.type === 'player' && l.x >= e.x && l.x <= e.x + e.width && l.y >= e.y && l.y <= e.y + e.height) {
+                        lasers.splice(j, 1); e.hp--; playSound('hit');
+                        makeExplosion(l.x, l.y, e.type==='alien'?['#55ff55','#ffffff']:['#777','#444'], 6);
+
+                        if (e.hp <= 0) {
+                            if (e.type === 'asteroid' && e.width > 45) {
+                                enemies.push({ x: e.x, y: e.y, width: e.width/2, height: e.width/2, type: 'asteroid', hp: 1, speed: e.speed + 1.2 });
+                                enemies.push({ x: e.x + e.width/2, y: e.y, width: e.width/2, height: e.width/2, type: 'asteroid', hp: 1, speed: e.speed + 1.2 });
+                            }
+                            if (Math.random() < 0.15) { powerups.push({ x: e.x + e.width/2, y: e.y }); }
+
+                            enemies.splice(i, 1); playSound('explode'); score += e.type === 'alien' ? 10 : 5;
+                            scoreEl.textContent = score;
+
+                            let calcLevel = Math.floor(score / 50) + 1;
+                            if (calcLevel > currentLevel) {
+                                currentLevel = calcLevel; levelEl.textContent = currentLevel; levelUpTimer = 90;
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                if (e.y > canvas.height) { enemies.splice(i, 1); }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i]; p.x += p.vx; p.y += p.vy; p.life--;
+                ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, p.size, p.size);
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            // Normal Level Up display
+            if (levelUpTimer > 0 && cheatBannerTimer <= 0) {
+                levelUpTimer--; ctx.save();
+                ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, canvas.height/2 - 60, canvas.width, 110);
+                ctx.font = 'bold 3rem Courier New'; ctx.textAlign = 'center'; ctx.fillStyle = '#55ffff';
+                ctx.fillText(`🚀 SECTOR ${currentLevel} 🚀`, canvas.width / 2, canvas.height / 2 + 15);
+                ctx.restore();
+            }
+
+            // Secret Cheat Activation Display
+            if (cheatBannerTimer > 0) {
+                cheatBannerTimer--; ctx.save();
+                ctx.fillStyle = 'rgba(255,0,0,0.3)'; ctx.fillRect(0, canvas.height/2 - 60, canvas.width, 110);
+                ctx.font = 'bold 2.5rem Courier New'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffff55';
+                ctx.fillText(`⚠️ BRAN-MAN CHEAT ACTIVE ⚠️`, canvas.width / 2, canvas.height / 2 + 15);
+                ctx.restore();
+            }
+
+            ctx.restore();
+            requestAnimationFrame(animate);
+        }
+    </script>
+</body>
+</html>
