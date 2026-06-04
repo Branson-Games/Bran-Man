@@ -93,16 +93,15 @@
             </div>
         </div>
 
-        <!-- Screens -->
         <div id="start-screen" class="overlay">
             <h1>ZOMBIE FARM DEFENDER</h1>
-            <p>Welcome back, Commander Branson!<br><br>Zombies are attacking from the right side. Tap <b>Place Turret</b>, then tap any grid square to build your defenses.<br><br>Collect yellow glowing scrap metal items, and call in the tactical <b>BRANCOPTER Air Deploy</b> when your score points fill up!</p>
+            <p>Welcome back, Commander Branson!<br><br>Zombies are attacking from the right side. Tap <b>Place Turret</b>, then tap an empty square to build.<br><br><b>TACTICAL RULES:</b> Tap an existing turret to <b>UPGRADE</b> its speed for 30 Scrap. Turrets only last for 1 wave cycle after the wave they are built in!</p>
             <button class="btn-action" onclick="startGame()">ENGAGE DEFENSE ⚡</button>
         </div>
 
         <div id="wave-clear-screen" class="overlay hidden">
             <h1 id="clear-title">WAVE CLEARED!</h1>
-            <p id="clear-desc">Fantastic positioning, Branson. Perimeter secure for now.</p>
+            <p id="clear-desc">Fantastic positioning, Branson. Old defenses have expired, survivors carry forward.</p>
             <button class="btn-action" onclick="startNextWave()">START NEXT WAVE 🔄</button>
         </div>
 
@@ -150,6 +149,7 @@
 
         let isPlacingTurret = false;
         const TURRET_COST = 50;
+        const UPGRADE_COST = 30;
         const BRANCOPTER_COST_POINTS = 300;
 
         let zombiesToSpawn = [];
@@ -239,8 +239,11 @@
                         x: c * cellWidth + cellWidth / 2,
                         y: r * cellHeight + cellHeight / 2,
                         fireCooldown: Math.random() * 30,
-                        maxCooldown: 25,
-                        hp: 5
+                        maxCooldown: 20,
+                        hp: 5,
+                        isCopterTurret: true,
+                        isNew: true, // Copter ones will be wiped anyway
+                        level: 1
                     });
                     deployedCount++;
                 }
@@ -268,13 +271,29 @@
                 }
             }
 
-            if (isPlacingTurret && gameActive) {
-                let col = Math.floor(tapX / cellWidth);
-                let row = Math.floor(tapY / cellHeight);
+            let col = Math.floor(tapX / cellWidth);
+            let row = Math.floor(tapY / cellHeight);
 
+            let existingTurret = turrets.find(t => t.row === row && t.col === col);
+            if (existingTurret && gameActive && !isPlacingTurret) {
+                if (scrap >= UPGRADE_COST && existingTurret.level === 1) {
+                    scrap -= UPGRADE_COST;
+                    existingTurret.level = 2;
+                    existingTurret.maxCooldown = 20;
+                    // Upgraded turrets count as newly interacted/saved for the rolling window
+                    existingTurret.isNew = true; 
+                    scrapDisplay.textContent = scrap;
+                    playSfx('bloop');
+                    updateShopButtons();
+                } else {
+                    playSfx('crunch');
+                }
+                return;
+            }
+
+            if (isPlacingTurret && gameActive) {
                 if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
-                    let exists = turrets.some(t => t.row === row && t.col === col);
-                    if (!exists) {
+                    if (!existingTurret) {
                         scrap -= TURRET_COST;
                         scrapDisplay.textContent = scrap;
                         
@@ -284,7 +303,10 @@
                             y: row * cellHeight + cellHeight / 2,
                             fireCooldown: 0,
                             maxCooldown: 45,
-                            hp: 3
+                            hp: 3,
+                            isCopterTurret: false,
+                            isNew: true, // Marked brand new! Will survive exactly one level clear phase.
+                            level: 1
                         });
 
                         playSfx('bloop');
@@ -362,23 +384,23 @@
             if (currentWave % 5 === 0) {
                 zombiesToSpawn.push({
                     type: 'boss',
-                    hp: 35 + (currentWave * 8),
-                    speed: 0.4,
-                    maxHp: 35 + (currentWave * 8)
+                    hp: 40 + (currentWave * 12),
+                    speed: 0.35,
+                    maxHp: 40 + (currentWave * 12)
                 });
                 playSfx('alarm');
                 return;
             }
 
-            let count = 6 + (currentWave * 4);
+            let count = 6 + (currentWave * 5);
             for (let i = 0; i < count; i++) {
                 let rng = Math.random();
-                if (rng > 0.75 && currentWave >= 4) {
-                    zombiesToSpawn.push({ type: 'tank', hp: 8, speed: 0.6 });
-                } else if (rng > 0.45 && currentWave >= 2) {
-                    zombiesToSpawn.push({ type: 'sprinter', hp: 2, speed: 1.6 });
+                if (rng > 0.70 && currentWave >= 3) {
+                    zombiesToSpawn.push({ type: 'tank', hp: 9, speed: 0.55 });
+                } else if (rng > 0.40 && currentWave >= 2) {
+                    zombiesToSpawn.push({ type: 'sprinter', hp: 2, speed: 1.7 });
                 } else {
-                    zombiesToSpawn.push({ type: 'normal', hp: 3, speed: 0.9 });
+                    zombiesToSpawn.push({ type: 'normal', hp: 4, speed: 0.85 });
                 }
             }
         }
@@ -387,7 +409,7 @@
             currentWave++;
             waveDisplay.textContent = currentWave;
             waveClearScreen.classList.add('hidden');
-            scrap += 40;
+            scrap += 30;
             scrapDisplay.textContent = scrap;
             updateShopButtons();
             
@@ -396,10 +418,8 @@
         }
 
         function animate() {
-            // ALWAYS request the next frame at the start, entirely decoupled from state
             requestAnimationFrame(animate);
 
-            // Draw Background static grid state regardless of activity
             ctx.fillStyle = '#0a1c0a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             ctx.strokeStyle = 'rgba(85, 255, 85, 0.08)'; ctx.lineWidth = 2;
@@ -411,11 +431,16 @@
             }
             ctx.fillStyle = '#ff5555'; ctx.fillRect(0, 0, 8, canvas.height);
 
-            // Render existing placements so field doesn't look empty when paused
             turrets.forEach(t => {
-                ctx.fillStyle = '#ffaa00'; ctx.beginPath();
+                ctx.fillStyle = t.isCopterTurret ? '#55ffff' : (t.level === 2 ? '#ff55ff' : '#ffaa00');
+                ctx.beginPath();
                 ctx.arc(t.x, t.y, Math.min(cellWidth, cellHeight) * 0.3, 0, Math.PI*2); ctx.fill();
                 ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(t.x + 8, t.y, 6, 0, Math.PI*2); ctx.fill();
+                
+                if (t.level === 2) {
+                    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath();
+                    ctx.arc(t.x, t.y, Math.min(cellWidth, cellHeight) * 0.36, 0, Math.PI*2); ctx.stroke();
+                }
             });
 
             zombies.forEach(z => {
@@ -428,7 +453,7 @@
                     ctx.fillStyle = '#ff00ff'; ctx.fillRect(z.x - 10, z.y - 12, 5, 5);
                 } else if (z.type === 'tank') {
                     ctx.fillStyle = '#115511'; ctx.fillRect(z.x - 28, z.y - 30, 56, 60);
-                    ctx.fillStyle = '#ffaa00'; ctx.fillRect(z.x - 18, z.y - 18, 8, 8);
+                    ctx.fillStyle = '#ffaa00'; ctx.fillRect(z.x - 18, z.y - 8, 8, 8);
                 } else if (z.type === 'boss') {
                     ctx.fillStyle = '#331144'; ctx.fillRect(z.x - 45, z.y - 55, 90, 110);
                     ctx.fillStyle = '#ffff55'; ctx.fillRect(z.x - 30, z.y - 55, 60, 15);
@@ -453,7 +478,6 @@
                 ctx.fillText('⚙️', item.x, item.y + 5);
             });
 
-            // Fly-by processing always scales regardless of state
             for (let i = animations.length - 1; i >= 0; i--) {
                 let anim = animations[i];
                 if (anim.type === 'brancopter_sweep') {
@@ -469,7 +493,6 @@
                 }
             }
 
-            // ONLY RUN PHYSICS AND SPAWNS IF GAME IS ACTIVE
             if (!gameActive) return;
 
             // 1. TURRET LOGIC
@@ -501,7 +524,7 @@
                         speed: proto.speed,
                         eatingTimer: 0
                     });
-                    spawnCountdown = Math.max(25, 90 - (currentWave * 4));
+                    spawnCountdown = Math.max(20, 85 - (currentWave * 5));
                 }
             }
 
@@ -521,7 +544,7 @@
                         if (z.hp <= 0) {
                             collectables.push({
                                 x: z.x, y: z.y,
-                                amount: z.type === 'boss' ? 150 : (z.type === 'tank' ? 25 : 15),
+                                amount: z.type === 'boss' ? 100 : (z.type === 'tank' ? 25 : 15),
                                 pulse: 0
                             });
                             score += z.type === 'boss' ? 500 : (z.type === 'tank' ? 50 : 20);
@@ -544,7 +567,7 @@
                     if (t.row === z.row && Math.abs(z.x - t.x) < cellWidth * 0.5) {
                         blocked = true;
                         z.eatingTimer++;
-                        if (z.eatingTimer >= 45) {
+                        if (z.eatingTimer >= 40) {
                             t.hp--;
                             playSfx('crunch');
                             z.eatingTimer = 0;
@@ -572,15 +595,23 @@
                 }
             }
 
-            // 5. EVALUATE WAVE CLEAR STATUS
+            // 5. EVALUATE WAVE CLEAR STATUS (ROLLING SYSTEM DEPLOYED HERE)
             if (zombiesToSpawn.length === 0 && zombies.length === 0) {
                 gameActive = false;
+                
+                // Keep ONLY the normal turrets placed or upgraded DURING this specific wave.
+                // Anything older or spawned by the Copter drops out right here.
+                turrets = turrets.filter(t => t.isNew && !t.isCopterTurret);
+                
+                // Age the survivors: strip the 'isNew' tag so they must be updated or replaced next wave!
+                turrets.forEach(t => t.isNew = false);
+                
                 if (currentWave % 5 === 0) {
                     clearTitle.textContent = `👑 BOSS SECTOR DEFEATED! 👑`;
                     clearDesc.innerHTML = `Incredible work, Commander Branson! You completely shattered the Mega Zombie Boss line.<br><br>Receive your bonus heavy supply cargo allocations.`;
                 } else {
                     clearTitle.textContent = `WAVE ${currentWave} CLEARED!`;
-                    clearDesc.textContent = `Excellent defense arrays, Branson. The farmyard borders are currently secured. Prepare strategies for the next wave configuration setup.`;
+                    clearDesc.textContent = `Excellent defense arrays, Branson. Old defenses have vanished, the rolling perimeter has recycled.`;
                 }
                 waveClearScreen.classList.remove('hidden');
             }
