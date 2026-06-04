@@ -155,13 +155,25 @@
         let spawnCountdown = 0;
 
         let audioCtx = null;
-        function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+        function initAudio() { 
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
         function playSfx(preset) {
+            initAudio();
             if (!audioCtx) return;
-            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            // Audio engine wake check to guarantee playback
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.connect(gain); 
+            gain.connect(audioCtx.destination);
 
             if (preset === 'laser') {
                 osc.type = 'triangle'; osc.frequency.setValueAtTime(300, audioCtx.currentTime);
@@ -256,7 +268,7 @@
             const tapX = clientX - rect.left;
             const tapY = clientY - rect.top;
 
-            // Check resource collection click zones
+            // Resource collection checks
             for (let i = collectables.length - 1; i >= 0; i--) {
                 let item = collectables[i];
                 let dist = Math.hypot(tapX - item.x, tapY - item.y);
@@ -279,7 +291,6 @@
 
             let existingTurret = turrets.find(t => t.row === row && t.col === col);
 
-            // Handle existing asset speeds modifications 
             if (existingTurret && !isPlacingTurret) {
                 if (existingTurret.isCopterTurret) {
                     playSfx('crunch');
@@ -299,7 +310,6 @@
                 return;
             }
 
-            // Fixed placement safety pipeline
             if (isPlacingTurret && !existingTurret) {
                 if (scrap >= TURRET_COST) {
                     scrap -= TURRET_COST;
@@ -353,6 +363,7 @@
         function startGame() {
             setupGrid();
             initAudio();
+            playSfx('bloop'); // Play diagnostic sound instantly to activate browser audio channel
             
             currentWave = 1;
             scrap = 100;
@@ -429,7 +440,6 @@
 
             ctx.fillStyle = '#0a1c0a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Grid Rendering Architecture
             ctx.strokeStyle = 'rgba(85, 255, 85, 0.08)'; ctx.lineWidth = 2;
             for (let i = 0; i <= ROWS; i++) {
                 ctx.beginPath(); ctx.moveTo(0, i * cellHeight); ctx.lineTo(canvas.width, i * cellHeight); ctx.stroke();
@@ -439,7 +449,6 @@
             }
             ctx.fillStyle = '#ff5555'; ctx.fillRect(0, 0, 8, canvas.height);
 
-            // Turret Assets Drawing Matrix
             turrets.forEach(t => {
                 ctx.fillStyle = t.isCopterTurret ? '#55ffff' : (t.level === 2 ? '#ff55ff' : '#ffaa00');
                 ctx.beginPath();
@@ -452,7 +461,6 @@
                 }
             });
 
-            // Zombie Art Render Core
             zombies.forEach(z => {
                 ctx.save();
                 let walkBop = Math.sin(z.x * 0.15) * 3;
@@ -656,7 +664,6 @@
             }
         }
         
-        // Start rendering immediately so things process natively
         animate();
     </script>
 </body>
