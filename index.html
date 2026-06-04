@@ -2,24 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BRAN-MAN Arcade Room</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BRAN-MAN: Zombie Farm Defender</title>
     
-    <!-- Dynamic PNG Icon Generator for iPad Home Screen (Arcade Controller) -->
+    <!-- Dynamic Apple Icon Generator (Custom Zombie/Turret Hybrid Logo) -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const c = document.createElement('canvas'); c.width = 180; c.height = 180;
             const ctx = c.getContext('2d');
-            // Background
-            ctx.fillStyle = '#0b0b1a'; ctx.fillRect(0, 0, 180, 180);
-            ctx.strokeStyle = '#ffff55'; ctx.lineWidth = 8; ctx.strokeRect(4, 4, 172, 172);
-            // D-Pad (Plus sign)
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(40, 80, 45, 15); ctx.fillRect(55, 65, 15, 45);
-            // Arcade Buttons
-            ctx.fillStyle = '#ff5555'; ctx.beginPath(); ctx.arc(115, 80, 14, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = '#55ffff'; ctx.beginPath(); ctx.arc(145, 95, 14, 0, Math.PI*2); ctx.fill();
-            
+            ctx.fillStyle = '#0a140a'; ctx.fillRect(0, 0, 180, 180);
+            ctx.fillStyle = '#55ff55'; ctx.fillRect(40, 60, 100, 80);
+            ctx.fillStyle = '#ffaa00'; ctx.beginPath(); ctx.arc(90, 60, 25, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#000000'; ctx.fillRect(65, 80, 15, 15); ctx.fillRect(100, 80, 15, 15);
             const url = c.toDataURL('image/png');
             let l1 = document.createElement('link'); l1.rel = 'apple-touch-icon'; l1.href = url; document.head.appendChild(l1);
             let l2 = document.createElement('link'); l2.rel = 'icon'; l2.type = 'image/png'; l2.href = url; document.head.appendChild(l2);
@@ -28,76 +22,630 @@
 
     <style>
         body {
-            margin: 0; padding: 0;
-            background: #0b0b1a; color: white;
-            font-family: 'Courier New', Courier, monospace;
-            display: flex; flex-direction: column; align-items: center;
-            justify-content: center; min-height: 100vh;
-            user-select: none; box-sizing: border-box;
-            border: 10px solid #ffff55;
+            margin: 0; padding: 0; background: #050a05; overflow: hidden;
+            font-family: 'Courier New', Courier, monospace; user-select: none;
+            -webkit-touch-callout: none;
         }
-        h1 {
-            font-size: 3.5rem; color: #ffff55;
-            text-shadow: 4px 4px 0px #ff3333, 8px 8px 0px #000;
-            margin-bottom: 10px; text-align: center;
+        #game-container {
+            position: relative; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; justify-content: space-between;
         }
-        p {
-            font-size: 1.4rem; color: #55ffff;
-            margin-bottom: 40px; text-shadow: 2px 2px 0px #000;
-        }
-        .menu-container {
-            display: flex; gap: 30px; flex-wrap: wrap;
-            justify-content: center; max-width: 900px; padding: 20px;
-        }
-        .game-card {
-            background: #151530; border: 5px solid #fff;
-            box-shadow: 6px 6px 0px #000; width: 280px;
-            padding: 25px; text-align: center; cursor: pointer;
-            text-decoration: none; color: white;
-            transition: transform 0.1s, background 0.1s;
-        }
-        .game-card:active {
-            transform: scale(0.95); background: #222250;
-        }
-        .game-card.diamond { border-color: #55ffff; }
-        .game-card.space { border-color: #ff5555; }
         
-        .icon { font-size: 4rem; margin-bottom: 15px; display: block; }
-        .game-title { font-size: 1.8rem; font-weight: bold; margin-bottom: 10px; display: block; }
-        .game-card.diamond .game-title { color: #55ffff; }
-        .game-card.space .game-title { color: #ff55ff; }
+        /* Top HUD styling */
+        #hud {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 25px; background: rgba(10, 20, 10, 0.9);
+            border-bottom: 4px solid #55ff55; box-sizing: border-box;
+        }
+        .hud-item { font-size: 1.5rem; font-weight: bold; text-shadow: 2px 2px 0px #000; }
+        #scrap-display { color: #ffff55; }
+        #score-display { color: #55ffff; }
+        #wave-display { color: #ff55ff; }
+        #base-hp-container { display: flex; align-items: center; gap: 8px; color: #ff5555; }
         
-        .desc { font-size: 1rem; color: #ccc; line-height: 1.4; display: block; }
+        /* Main Interactive Canvas Field */
+        #game-canvas { display: block; background: #0a1c0a; flex-grow: 1; }
+
+        /* Bottom iPad Dock controls */
+        #control-panel {
+            background: #020502; border-top: 4px solid #55ff55;
+            padding: 15px 20px; display: flex; justify-content: space-around; align-items: center; gap: 15px;
+        }
+        .shop-btn {
+            flex: 1; max-width: 260px; padding: 14px; font-family: 'Courier New', monospace;
+            font-size: 1.3rem; font-weight: bold; text-align: center; border: 4px solid #000;
+            cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px;
+        }
+        #btn-turret { background: #ffaa00; color: #000; box-shadow: inset -4px -4px 0 #995500, inset 4px 4px 0 #ffff55; }
+        #btn-brancopter { background: #55ffff; color: #000; box-shadow: inset -4px -4px 0 #00aaaa, inset 4px 4px 0 #ffffff; }
+        
+        .disabled { opacity: 0.4 !important; filter: grayscale(80%); cursor: not-allowed !important; }
+        .btn-sub { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Center Display Notification screens */
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: rgba(5, 12, 5, 0.92); color: white; z-index: 10;
+            border: 8px solid #55ff55; box-sizing: border-box; padding: 20px;
+        }
+        .overlay h1 { font-size: 3rem; color: #55ff55; margin-bottom: 15px; text-align: center; text-shadow: 4px 4px 0px #000; }
+        .overlay p { font-size: 1.2rem; margin-bottom: 30px; text-align: center; max-width: 580px; line-height: 1.6; }
+        .btn-action {
+            padding: 16px 40px; font-size: 1.6rem; font-weight: bold; font-family: 'Courier New', monospace;
+            background: #ffaa00; color: black; border: 4px solid #000;
+            box-shadow: inset -4px -4px 0px #aa5500, inset 4px 4px 0px #ffff55; cursor: pointer;
+        }
+        .btn-action:hover { background: #ffff55; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-    <h1>BRAN-MAN ARCADE</h1>
-    <p>SELECT A MISSION, COMMANDER BRANSON</p>
+    <div id="game-container">
+        <!-- HUD Statistics Banner -->
+        <div id="hud">
+            <div class="hud-item" id="scrap-display">⚙️ Scrap: <span>100</span></div>
+            <div class="hud-item" id="base-hp-container">🛡️ Base HP: <span id="base-hp">100</span>%</div>
+            <div class="hud-item" id="wave-display">🧟 Wave: <span>1</span></div>
+            <div class="hud-item" id="score-display">🏆 Points: <span>0</span></div>
+        </div>
 
-    <div class="menu-container">
-        
-        <!-- BUTTON FOR DIAMOND DASH -->
-        <a href="./Diamond-Dash/" class="game-card diamond">
-            <span class="icon">💎</span>
-            <span class="game-title">DIAMOND DASH</span>
-            <span class="desc">Catch falling diamonds and gold bars in your mining chest before time runs out!</span>
-        </a>
+        <!-- Battlefield Area Grid -->
+        <canvas id="game-canvas"></canvas>
 
-        <!-- BUTTON FOR COSMIC BLAST -->
-        <a href="./Cosmic-Blast/" class="game-card space">
-            <span class="icon">🚀</span>
-            <span class="game-title">COSMIC BLAST</span>
-            <span class="desc">Blast flying space asteroids and alien scout ships with twin laser cannons!</span>
-        </a>
-        <!-- BUTTON FOR ZOMBIE DEFENDER -->
-        <a href="./Zombie-Defense/" class="game-card" style="border-color: #55ff55;">
-            <span class="icon">🧟‍♂️</span>
-            <span class="game-title" style="color: #55ff55;">ZOMBIE DEFENDER</span>
-            <span class="desc">Deploy defense turrets and call the legendary BRANCOPTER for automated air support!</span>
-        </a>
+        <!-- Dynamic Store / Ability Placement Tray -->
+        <div id="control-panel">
+            <div id="btn-turret" class="shop-btn" onclick="selectTurret()">
+                <span>🛠️ Place Turret</span>
+                <span class="btn-sub" id="turret-cost-label">Cost: 50 Scrap</span>
+            </div>
+            <div id="btn-brancopter" class="shop-btn disabled" onclick="triggerBrancopter()">
+                <span>🛸 BRANCOPTER FLYBY</span>
+                <span class="btn-sub" id="brancopter-cost-label">Needs 300 Points</span>
+            </div>
+        </div>
 
+        <!-- Launch Screen Overlay -->
+        <div id="start-screen" class="overlay">
+            <h1>ZOMBIE FARM DEFENDER</h1>
+            <p>Welcome back, Commander Branson!<br><br>Zombies are attacking the farm perimeter grid from the right side. Tap the <b>Place Turret</b> button, then tap any empty square on the grid map to build defense grids.<br><br>Collect yellow glow scrap metal to afford replacements, and call in the tactical <b>BRANCOPTER Air Deploy</b> when your score points fill the bar!</p>
+            <button class="btn-action" onclick="startGame()">ENGAGE DEFENSE ⚡</button>
+        </div>
+
+        <!-- Level transition interim panel -->
+        <div id="wave-clear-screen" class="overlay hidden">
+            <h1 id="clear-title">WAVE CLEARED!</h1>
+            <p id="clear-desc">Fantastic positioning, Branson. The farmyard perimeter secure for now. Incoming salvos are growing heavier.</p>
+            <button class="btn-action" onclick="startNextWave()">START NEXT WAVE 🔄</button>
+        </div>
+
+        <!-- Survival Fail Window -->
+        <div id="game-over-screen" class="overlay hidden">
+            <h1 style="color: #ff5555;">PERIMETER BREACHED</h1>
+            <p>Branson, the base took too much damage! You successfully repelled forces up to <b>Wave <span id="final-wave" style="color: #ff55ff;">1</span></b> and collected <b><span id="final-score" style="color: #55ffff;">0</span> points</b>.</p>
+            <button class="btn-action" onclick="startGame()">REDEPLOY DEFENSES 🛠️</button>
+        </div>
     </div>
 
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Setup DOM Hooks
+        const scrapDisplay = document.querySelector('#scrap-display span');
+        const scoreDisplay = document.querySelector('#score-display span');
+        const waveDisplay = document.querySelector('#wave-display span');
+        const baseHpDisplay = document.getElementById('base-hp');
+        const btnTurret = document.getElementById('btn-turret');
+        const btnBrancopter = document.getElementById('btn-brancopter');
+        const brancopterCostLabel = document.getElementById('brancopter-cost-label');
+        
+        const startScreen = document.getElementById('start-screen');
+        const waveClearScreen = document.getElementById('wave-clear-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const clearTitle = document.getElementById('clear-title');
+        const clearDesc = document.getElementById('clear-desc');
+
+        // Grid Configuration (Balanced perfectly for iPad viewing aspect ratios)
+        const ROWS = 5;
+        const COLS = 8;
+        let cellWidth, cellHeight;
+
+        // Core Dynamic State
+        let gameActive = false;
+        let currentWave = 1;
+        let scrap = 100;
+        let score = 0;
+        let baseHp = 100;
+        
+        let turrets = [];
+        let zombies = [];
+        let projectiles = [];
+        let collectables = [];
+        let animations = []; // Handles visual indicators like Brancopter pass animations
+
+        let isPlacingTurret = false;
+        const TURRET_COST = 50;
+        const BRANCOPTER_COST_POINTS = 300; // Point requirements to trigger the Brancopter support loop
+
+        // Zombie wave orchestrator registers
+        let zombiesToSpawn = [];
+        let spawnCountdown = 0;
+
+        // Micro Arcade Web-Audio Synth engine
+        let audioCtx = null;
+        function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+        function playSfx(preset) {
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+
+            if (preset === 'laser') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            } else if (preset === 'crunch') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(30, audioCtx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+            } else if (preset === 'bloop') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(600, audioCtx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.18);
+            } else if (preset === 'brancopter') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(80, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(160, audioCtx.currentTime + 0.1);
+                osc.frequency.setValueAtTime(60, audioCtx.currentTime + 0.2);
+                osc.frequency.setValueAtTime(200, audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+            } else if (preset === 'alarm') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(440, audioCtx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            }
+        }
+
+        // Handle Canvas sizing scaling
+        function setupGrid() {
+            canvas.width = window.innerWidth;
+            // Deduct sizes of HUD and Bottom bar
+            const occupiedHeight = document.getElementById('hud').offsetHeight + document.getElementById('control-panel').offsetHeight;
+            canvas.height = window.innerHeight - occupiedHeight;
+
+            cellWidth = canvas.width / COLS;
+            cellHeight = canvas.height / ROWS;
+        }
+        window.addEventListener('resize', () => { setupGrid(); });
+
+        // User Interface Actions
+        function selectTurret() {
+            if (!gameActive) return;
+            if (scrap < TURRET_COST) { playSfx('crunch'); return; }
+            isPlacingTurret = !isPlacingTurret;
+            btnTurret.style.background = isPlacingTurret ? '#ffff55' : '#ffaa00';
+        }
+
+        // BRANCOPTER AUTO DEDEPLOY LOGIC
+        function triggerBrancopter() {
+            if (!gameActive || score < BRANCOPTER_COST_POINTS) return;
+            
+            // Deduct points cost and reset button states
+            score -= BRANCOPTER_COST_POINTS;
+            scoreDisplay.textContent = score;
+            updateShopButtons();
+            
+            playSfx('brancopter');
+
+            // Trigger a visual sweep fly-by animation
+            animations.push({
+                type: 'brancopter_sweep',
+                x: -150,
+                y: canvas.height / 2,
+                speed: 12
+            });
+
+            // Auto Deploy 3 random non-overlapping high speed turrets on the field instantly
+            let deployedCount = 0;
+            let attempts = 0;
+            while (deployedCount < 3 && attempts < 40) {
+                attempts++;
+                let r = Math.floor(Math.random() * ROWS);
+                let c = Math.floor(Math.random() * (COLS - 2)); // Keep them slightly away from the far back zombie spawns
+                
+                // Confirm cell is clear
+                let occupied = turrets.some(t => t.row === r && t.col === c);
+                if (!occupied) {
+                    turrets.push({
+                        row: r, col: c,
+                        x: c * cellWidth + cellWidth / 2,
+                        y: r * cellHeight + cellHeight / 2,
+                        fireCooldown: Math.random() * 30,
+                        maxCooldown: 25, // Shoots faster than normal turrets!
+                        hp: 5
+                    });
+                    deployedCount++;
+                }
+            }
+        }
+
+        // Capture Tap inputs on the field grid
+        function handleCanvasTap(clientX, clientY) {
+            initAudio();
+            const rect = canvas.getBoundingClientRect();
+            const tapX = clientX - rect.left;
+            const tapY = clientY - rect.top;
+
+            // Check if user clicked a floating Scrap pickup drop first
+            for (let i = collectables.length - 1; i >= 0; i--) {
+                let item = collectables[i];
+                let dist = Math.hypot(tapX - item.x, tapY - item.y);
+                if (dist < 35) {
+                    scrap += item.amount;
+                    score += 10; // Boost score too!
+                    scrapDisplay.textContent = scrap;
+                    scoreDisplay.textContent = score;
+                    playSfx('bloop');
+                    collectables.splice(i, 1);
+                    updateShopButtons();
+                    return; // Intercepted tap
+                }
+            }
+
+            // Otherwise check grid cell deployment targeting
+            if (isPlacingTurret) {
+                let col = Math.floor(tapX / cellWidth);
+                let row = Math.floor(tapY / cellHeight);
+
+                if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
+                    // Check if already occupied
+                    let exists = turrets.some(t => t.row === row && t.col === col);
+                    if (!exists) {
+                        scrap -= TURRET_COST;
+                        scrapDisplay.textContent = scrap;
+                        
+                        turrets.push({
+                            row: row, col: col,
+                            x: col * cellWidth + cellWidth / 2,
+                            y: row * cellHeight + cellHeight / 2,
+                            fireCooldown: 0,
+                            maxCooldown: 45, // Standard cycle speed
+                            hp: 3
+                        });
+
+                        playSfx('bloop');
+                        isPlacingTurret = false;
+                        btnTurret.style.background = '#ffaa00';
+                        updateShopButtons();
+                    }
+                }
+            }
+        }
+
+        canvas.addEventListener('click', (e) => handleCanvasTap(e.clientX, e.clientY));
+        canvas.addEventListener('touchstart', (e) => {
+            handleCanvasTap(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: true });
+
+
+        function updateShopButtons() {
+            // Turret evaluation
+            if (scrap >= TURRET_COST) { btnTurret.classList.remove('disabled'); } 
+            else { btnTurret.classList.add('disabled'); }
+
+            // Brancopter availability calculation
+            if (score >= BRANCOPTER_COST_POINTS) {
+                btnBrancopter.classList.remove('disabled');
+                brancopterCostLabel.textContent = "READY TO LAUNCH 🚀";
+                btnBrancopter.style.background = "#55ff55";
+            } else {
+                btnBrancopter.classList.add('disabled');
+                brancopterCostLabel.textContent = `Need ${BRANCOPTER_COST_POINTS - score} more Pts`;
+                btnBrancopter.style.background = "#55ffff";
+            }
+        }
+
+        function startGame() {
+            setupGrid();
+            initAudio();
+            
+            currentWave = 1;
+            scrap = 100;
+            score = 0;
+            baseHp = 100;
+            
+            turrets = [];
+            zombies = [];
+            projectiles = [];
+            collectables = [];
+            animations = [];
+
+            scrapDisplay.textContent = scrap;
+            scoreDisplay.textContent = score;
+            waveDisplay.textContent = currentWave;
+            baseHpDisplay.textContent = baseHp;
+
+            startScreen.classList.add('hidden');
+            waveClearScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+
+            generateWaveData();
+            gameActive = true;
+            updateShopButtons();
+            animate();
+        }
+
+        // Infinite Wave Generation Engine with Boss Levels built directly in
+        function generateWaveData() {
+            zombiesToSpawn = [];
+            spawnCountdown = 40;
+
+            // Level 5, 10, 15, 20... are BOSS levels!
+            if (currentWave % 5 === 0) {
+                // Spawn a single mega zombie king boss
+                zombiesToSpawn.push({
+                    type: 'boss',
+                    hp: 35 + (currentWave * 8),
+                    speed: 0.4,
+                    maxHp: 35 + (currentWave * 8)
+                });
+                playSfx('alarm');
+                return;
+            }
+
+            // Otherwise standard scale regular waves mathematically
+            let count = 6 + (currentWave * 4);
+            for (let i = 0; i < count; i++) {
+                let rng = Math.random();
+                if (rng > 0.75 && currentWave >= 4) {
+                    zombiesToSpawn.push({ type: 'tank', hp: 8, speed: 0.6 }); // Slow but heavy
+                } else if (rng > 0.45 && currentWave >= 2) {
+                    zombiesToSpawn.push({ type: 'sprinter', hp: 2, speed: 1.6 }); // Rapid speed runner
+                } else {
+                    zombiesToSpawn.push({ type: 'normal', hp: 3, speed: 0.9 }); // Vanilla unit
+                }
+            }
+        }
+
+        function startNextWave() {
+            currentWave++;
+            waveDisplay.textContent = currentWave;
+            waveClearScreen.classList.add('hidden');
+            // Give wave bonus scrap reward
+            scrap += 40;
+            scrapDisplay.textContent = scrap;
+            updateShopButtons();
+            
+            generateWaveData();
+            gameActive = true;
+            animate(); // Kicks the game loop right back into gear!
+        }
+
+        function animate() {
+            if (!gameActive) return;
+
+            // Draw Background Field
+            ctx.fillStyle = '#0a1c0a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Safety Grid Track lines
+            ctx.strokeStyle = 'rgba(85, 255, 85, 0.08)'; ctx.lineWidth = 2;
+            for (let i = 0; i <= ROWS; i++) {
+                ctx.beginPath(); ctx.moveTo(0, i * cellHeight); ctx.lineTo(canvas.width, i * cellHeight); ctx.stroke();
+            }
+            for (let j = 0; j <= COLS; j++) {
+                ctx.beginPath(); ctx.moveTo(j * cellWidth, 0); ctx.lineTo(j * cellWidth, canvas.height); ctx.stroke();
+            }
+
+            // Draw Base Wall Indicator line on extreme left boundary
+            ctx.fillStyle = '#ff5555'; ctx.fillRect(0, 0, 8, canvas.height);
+
+            // --- 1. PROCESS TURRETS ---
+            turrets.forEach(t => {
+                // Render defense turret pod
+                ctx.fillStyle = '#ffaa00'; ctx.beginPath();
+                ctx.arc(t.x, t.y, Math.min(cellWidth, cellHeight) * 0.3, 0, Math.PI*2); ctx.fill();
+                // Core lens element
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(t.x + 8, t.y, 6, 0, Math.PI*2); ctx.fill();
+
+                // Weapon firing sequence routines
+                t.fireCooldown++;
+                if (t.fireCooldown >= t.maxCooldown) {
+                    // Search if a zombie exists on its row line track
+                    let targetExists = zombies.some(z => z.row === t.row && z.x > t.x);
+                    if (targetExists) {
+                        projectiles.push({ x: t.x + 20, y: t.y, speed: 7, row: t.row });
+                        playSfx('laser');
+                        t.fireCooldown = 0;
+                    }
+                }
+            });
+
+            // --- 2. PROCESS WAVE SPAWNS ---
+            if (zombiesToSpawn.length > 0) {
+                spawnCountdown--;
+                if (spawnCountdown <= 0) {
+                    let proto = zombiesToSpawn.shift();
+                    let assignedRow = Math.floor(Math.random() * ROWS);
+                    
+                    zombies.push({
+                        x: canvas.width + 40,
+                        y: assignedRow * cellHeight + cellHeight / 2,
+                        row: assignedRow,
+                        type: proto.type,
+                        hp: proto.hp,
+                        maxHp: proto.maxHp || proto.hp,
+                        speed: proto.speed,
+                        eatingTimer: 0
+                    });
+                    
+                    // Interval gap delays gets shorter on higher counts
+                    spawnCountdown = Math.max(25, 90 - (currentWave * 4));
+                }
+            }
+
+            // --- 3. PROCESS PROJECTILES ---
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                let p = projectiles[i];
+                p.x += p.speed;
+                
+                // Draw yellow plasma bolt
+                ctx.fillStyle = '#ffff55'; ctx.fillRect(p.x, p.y - 3, 14, 6);
+
+                if (p.x > canvas.width) { projectiles.splice(i, 1); continue; }
+
+                // Check collision impacts with active target vectors
+                for (let j = zombies.length - 1; j >= 0; j--) {
+                    let z = zombies[j];
+                    if (z.row === p.row && Math.abs(p.x - z.x) < 30) {
+                        z.hp--;
+                        projectiles.splice(i, 1);
+                        playSfx('crunch');
+
+                        if (z.hp <= 0) {
+                            // Drop collectible scrap element at position
+                            collectables.push({
+                                x: z.x, y: z.y,
+                                amount: z.type === 'boss' ? 150 : (z.type === 'tank' ? 25 : 15),
+                                pulse: 0
+                            });
+                            
+                            score += z.type === 'boss' ? 500 : (z.type === 'tank' ? 50 : 20);
+                            scoreDisplay.textContent = score;
+                            updateShopButtons();
+
+                            zombies.splice(j, 1);
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // --- 4. PROCESS ZOMBIES ---
+            for (let i = zombies.length - 1; i >= 0; i--) {
+                let z = zombies[i];
+                
+                // Check if colliding or blockaded by a turret pod structure
+                let blocked = false;
+                for (let j = turrets.length - 1; j >= 0; j--) {
+                    let t = turrets[j];
+                    if (t.row === z.row && Math.abs(z.x - t.x) < cellWidth * 0.5) {
+                        blocked = true;
+                        z.eatingTimer++;
+                        if (z.eatingTimer >= 45) { // Eat turret cycle tick rate
+                            t.hp--;
+                            playSfx('crunch');
+                            z.eatingTimer = 0;
+                            if (t.hp <= 0) { turrets.splice(j, 1); updateShopButtons(); }
+                        }
+                        break;
+                    }
+                }
+
+                if (!blocked) { z.x -= z.speed; }
+
+                // Visual Render engine calculations for assets
+                ctx.save();
+                if (z.type === 'normal') {
+                    ctx.fillStyle = '#55ff55'; ctx.fillRect(z.x - 20, z.y - 25, 40, 50); // Zombie block body
+                    ctx.fillStyle = '#ff3333'; ctx.fillRect(z.x - 12, z.y - 15, 6, 6); // Eyes
+                } else if (z.type === 'sprinter') {
+                    ctx.fillStyle = '#ccff33'; ctx.fillRect(z.x - 16, z.y - 20, 32, 40);
+                    ctx.fillStyle = '#ff00ff'; ctx.fillRect(z.x - 10, z.y - 12, 5, 5);
+                } else if (z.type === 'tank') {
+                    ctx.fillStyle = '#115511'; ctx.fillRect(z.x - 28, z.y - 30, 56, 60); // Heavy shell armor
+                    ctx.fillStyle = '#ffaa00'; ctx.fillRect(z.x - 18, z.y - 18, 8, 8);
+                } else if (z.type === 'boss') {
+                    // Draw Mega Zombie King
+                    ctx.fillStyle = '#331144'; ctx.fillRect(z.x - 45, z.y - 55, 90, 110);
+                    ctx.fillStyle = '#ffff55'; ctx.fillRect(z.x - 30, z.y - 55, 60, 15); // Crown unit
+                    ctx.fillStyle = '#ff0000'; ctx.fillRect(z.x - 25, z.y - 20, 12, 12); ctx.fillRect(z.x + 13, z.y - 20, 12, 12);
+                    
+                    // Healthbar tracker overhead for Boss battles
+                    let pct = z.hp / z.maxHp;
+                    ctx.fillStyle = '#444'; ctx.fillRect(z.x - 50, z.y - 70, 100, 8);
+                    ctx.fillStyle = '#ff3333'; ctx.fillRect(z.x - 50, z.y - 70, 100 * pct, 8);
+                }
+                ctx.restore();
+
+                // If zombies reach the left defensive red safety fence lane line boundary
+                if (z.x <= 8) {
+                    baseHp -= z.type === 'boss' ? 50 : (z.type === 'tank' ? 20 : 10);
+                    baseHp = Math.max(0, baseHp);
+                    baseHpDisplay.textContent = baseHp;
+                    playSfx('alarm');
+                    zombies.splice(i, 1);
+
+                    if (baseHp <= 0) {
+                        gameActive = false;
+                        document.getElementById('final-wave').textContent = currentWave;
+                        document.getElementById('final-score').textContent = score;
+                        gameOverScreen.classList.remove('hidden');
+                        return;
+                    }
+                }
+            }
+
+            // --- 5. PROCESS COLLECTABLE LOOT ITEMS ---
+            collectables.forEach(item => {
+                item.pulse += 0.1;
+                let sizeBounce = 16 + Math.sin(item.pulse) * 4;
+                
+                // Outer gold energetic highlight ring pulse aura
+                ctx.fillStyle = 'rgba(255, 255, 85, 0.4)'; ctx.beginPath();
+                ctx.arc(item.x, item.y, sizeBounce + 8, 0, Math.PI*2); ctx.fill();
+                
+                // Inner core mechanical scrap icon gear shape
+                ctx.fillStyle = '#ffff55'; ctx.beginPath();
+                ctx.arc(item.x, item.y, sizeBounce, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#000'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
+                ctx.fillText('⚙️', item.x, item.y + 5);
+            });
+
+            // --- 6. ANIMATE SYSTEM FLY-BY EVENTS (BRANCOPTER SUPPORT) ---
+            for (let i = animations.length - 1; i >= 0; i--) {
+                let anim = animations[i];
+                if (anim.type === 'brancopter_sweep') {
+                    anim.x += anim.speed;
+                    
+                    // Render custom futuristic Brancopter machine frame
+                    ctx.save();
+                    ctx.fillStyle = '#55ffff'; ctx.fillRect(anim.x - 40, anim.y - 20, 80, 40); // Body core
+                    ctx.fillStyle = '#ffffff'; ctx.fillRect(anim.x - 65, anim.y - 30, 130, 6);  // Blade wing spinning
+                    ctx.fillStyle = '#ffaa00'; ctx.fillRect(anim.x + 20, anim.y + 5, 25, 10);   // Forward nose cannon
+                    
+                    // Giant custom neon "B" signature initial display
+                    ctx.fillStyle = '#000000'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center';
+                    ctx.fillText('B', anim.x, anim.y + 10);
+                    ctx.restore();
+
+                    // If it exits the outer field boundaries, remove object instance track
+                    if (anim.x > canvas.width + 100) { animations.splice(i, 1); }
+                }
+            }
+
+            // --- 7. EVALUATE WAVE COMPLETION CRITERIA ---
+            if (zombiesToSpawn.length === 0 && zombies.length === 0 && gameActive) {
+                gameActive = false;
+                if (currentWave % 5 === 0) {
+                    clearTitle.textContent = `👑 BOSS SECTOR DEFEATED! 👑`;
+                    clearDesc.innerHTML = `Incredible work, Commander Branson! You completely shattered the Mega Zombie Boss line.<br><br>Take a deep breath and receive your heavy supply cargo configurations.`;
+                } else {
+                    clearTitle.textContent = `WAVE ${currentWave} CLEARED!`;
+                    clearDesc.textContent = `Excellent defense arrays, Branson. The farmyard borders are currently secured. Prepare strategies for the next wave configuration setup.`;
+                }
+                waveClearScreen.classList.remove('hidden');
+                return;
+            }
+
+            requestAnimationFrame(animate);
+        }
+    </script>
 </body>
 </html>
