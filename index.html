@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Diamond Miner Dash!</title>
     
+    <!-- Dynamic PNG Icon Generator for iPad -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const c = document.createElement('canvas'); c.width = 180; c.height = 180;
@@ -177,11 +178,11 @@
         
         let spawnTimer = 0;
         let spawnInterval = 50; 
-        let gameSpeed = 5;
+        let gameSpeed = 6.5; // Tuned up base speed
         let screenShake = 0;
         
-        let invincibleTimer = 0; // Frames of invincibility remaining
-        let levelUpBannerTimer = 0; // Frames to flash LEVEL UP banner
+        let invincibleTimer = 0; 
+        let levelUpBannerTimer = 0; 
 
         bestEl.textContent = highScore;
 
@@ -208,7 +209,6 @@
                 gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
                 osc.start(); osc.stop(audioCtx.currentTime + 0.2);
             } else if (type === 'star') {
-                // Triumphant power up melody
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(440, audioCtx.currentTime);
                 osc.frequency.setValueAtTime(554, audioCtx.currentTime + 0.1);
@@ -218,7 +218,6 @@
                 gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
                 osc.start(); osc.stop(audioCtx.currentTime + 0.5);
             } else if (type === 'levelup') {
-                // Classic stage clear fanfare
                 osc.type = 'square';
                 osc.frequency.setValueAtTime(330, audioCtx.currentTime);
                 osc.frequency.setValueAtTime(392, audioCtx.currentTime + 0.1);
@@ -275,7 +274,7 @@
             currentLevel = 1;
             items = [];
             particles = [];
-            gameSpeed = 5;
+            gameSpeed = 6.5; // Applied fast-start speed balance
             spawnInterval = 50;
             screenShake = 0;
             invincibleTimer = 0;
@@ -293,10 +292,8 @@
         }
 
         function spawnItem() {
-            // Pool changes slightly dynamically based on level
             const types = ['diamond', 'diamond', 'emerald', 'tnt', 'tnt'];
             
-            // Add a rare star chance
             if (Math.random() < 0.07) {
                 types.push('star');
             }
@@ -333,19 +330,15 @@
         function getBackgroundGradient() {
             let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
             if (currentLevel === 1) {
-                // Day Blue
                 grad.addColorStop(0, '#5c87e7');
                 grad.addColorStop(1, '#a3c2ff');
             } else if (currentLevel === 2) {
-                // Sunset Orange
                 grad.addColorStop(0, '#e65c00');
                 grad.addColorStop(1, '#f9d423');
             } else if (currentLevel === 3) {
-                // Starry Purple
                 grad.addColorStop(0, '#0f0c20');
                 grad.addColorStop(1, '#24243e');
             } else {
-                // Nether Cave
                 grad.addColorStop(0, '#3a0d0d');
                 grad.addColorStop(1, '#140303');
             }
@@ -355,7 +348,6 @@
         function drawChest() {
             ctx.save();
             
-            // Invincible Gold Flashing Effect
             if (invincibleTimer > 0 && Math.floor(invincibleTimer / 4) % 2 === 0) {
                 ctx.fillStyle = '#ffcc00';
                 ctx.strokeStyle = '#ffffff';
@@ -368,11 +360,9 @@
             ctx.lineWidth = 6;
             ctx.strokeRect(chest.x + 3, chest.y + 3, chest.width - 6, chest.height - 6);
             
-            // Trim lines
             ctx.fillStyle = (invincibleTimer > 0) ? '#ffaa00' : '#4A2F15';
             ctx.fillRect(chest.x, chest.y + 22, chest.width, 6);
             
-            // Lock plate
             ctx.fillStyle = '#C0C0C0';
             ctx.fillRect(chest.x + (chest.width / 2) - 8, chest.y + 16, 16, 18);
             ctx.fillStyle = '#555555';
@@ -418,7 +408,6 @@
                 ctx.fillRect(item.x + 20, item.y, 4, 4);
                 ctx.fillRect(item.x + 30, item.y, 4, 4);
             } else if (item.type === 'star') {
-                // Draw Golden Star
                 ctx.fillStyle = '#ffff55';
                 ctx.beginPath();
                 ctx.moveTo(item.x + 20, item.y);
@@ -455,7 +444,6 @@
 
             ctx.save();
             
-            // Screen Shake
             if (screenShake > 0) {
                 let dx = (Math.random() - 0.5) * screenShake;
                 let dy = (Math.random() - 0.5) * screenShake;
@@ -464,11 +452,9 @@
                 if (screenShake < 0.5) screenShake = 0;
             }
 
-            // Draw Sky Environment
             ctx.fillStyle = getBackgroundGradient();
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw Dirt Ground
             ctx.fillStyle = (currentLevel === 4) ? '#2a0808' : '#866043'; 
             ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
             ctx.fillStyle = (currentLevel === 4) ? '#ff5500' : '#578b32'; 
@@ -476,26 +462,21 @@
 
             drawChest();
 
-            // Handle Invincible Timer decrements
             if (invincibleTimer > 0) invincibleTimer--;
 
-            // Spawn Cycle
             spawnTimer++;
             if (spawnTimer >= spawnInterval) {
                 spawnItem();
                 spawnTimer = 0;
-                // Game speeds up slightly per level context
                 if (spawnInterval > 18) spawnInterval -= 0.3;
             }
 
-            // Handle Items
             for (let i = items.length - 1; i >= 0; i--) {
                 let item = items[i];
                 item.y += item.speed;
 
                 drawItem(item);
 
-                // Collision Detection
                 if (item.y + item.height >= chest.y && 
                     item.y <= chest.y + chest.height &&
                     item.x + item.width >= chest.x && 
@@ -507,7 +488,6 @@
                         playSound('tnt');
                         makeExplosion(item.x + 20, item.y + 20);
                         
-                        // Only get hurt if NOT invincible!
                         if (invincibleTimer <= 0) {
                             lives--;
                             livesEl.textContent = lives;
@@ -515,19 +495,18 @@
                     } else if (item.type === 'star') {
                         playSound('star');
                         makeExplosion(item.x + 20, item.y + 20, ['#ffff55', '#ffffff']);
-                        invincibleTimer = 300; // 5 full seconds at 60fps
+                        invincibleTimer = 300; 
                     } else {
                         playSound('gem');
                         let pointsGained = (item.type === 'emerald') ? 2 : 1;
                         score += pointsGained;
                         scoreEl.textContent = score;
 
-                        // Check Level Up Conditions (Every 50 points)
                         let calculatedLevel = Math.floor(score / 50) + 1;
                         if (calculatedLevel > currentLevel) {
                             currentLevel = calculatedLevel;
                             levelEl.textContent = currentLevel;
-                            levelUpBannerTimer = 90; // Show banner for 1.5 seconds
+                            levelUpBannerTimer = 90; 
                             playSound('levelup');
                             gameSpeed += 1;
                         }
@@ -537,11 +516,9 @@
                     continue;
                 }
 
-                // Ground Miss
                 if (item.y > canvas.height - 40) {
                     items.splice(i, 1);
                     
-                    // Only penalize missing genuine gems
                     if (item.type !== 'tnt' && item.type !== 'star') {
                         playSound('miss');
                         lives--;
@@ -551,7 +528,6 @@
                 }
             }
 
-            // Render Particle Engine
             for (let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
                 p.x += p.vx; p.y += p.vy; p.life--;
@@ -560,7 +536,6 @@
                 if (p.life <= 0) particles.splice(i, 1);
             }
 
-            // Render Big Level Up Banner Text
             if (levelUpBannerTimer > 0) {
                 levelUpBannerTimer--;
                 ctx.save();
