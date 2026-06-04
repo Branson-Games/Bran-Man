@@ -93,6 +93,7 @@
             </div>
         </div>
 
+        <!-- Screens -->
         <div id="start-screen" class="overlay">
             <h1>ZOMBIE FARM DEFENDER</h1>
             <p>Welcome back, Commander Branson!<br><br>Zombies attack from the right. Tap <b>Place Turret</b>, then tap any empty grid block to build.<br><br><b>TACTICAL CYCLE:</b> Tap an existing turret to <b>UPGRADE</b> its speed for 30 Scrap! Turrets only survive for 1 wave after the wave they are built or upgraded in.</p>
@@ -306,6 +307,8 @@
                 turrets.push({
                     row: row, col: col,
                     x: col * cellWidth + cellWidth / 2,
+                    y: r * cellHeight + cellHeight / 2,
+                    x: col * cellWidth + cellWidth / 2,
                     y: row * cellHeight + cellHeight / 2,
                     fireCooldown: 0,
                     maxCooldown: 45,
@@ -342,7 +345,6 @@
             }
         }
 
-        // Setup dimensions instantly upon asset paint
         setupGrid();
 
         function startGame() {
@@ -450,24 +452,70 @@
                 }
             });
 
+            // --- ARCADE ZOMBIE PIXEL ART DESIGN ENGINE ---
             zombies.forEach(z => {
                 ctx.save();
+                
+                // Animated slight shuffle bop based on horizontal movement
+                let walkBop = Math.sin(z.x * 0.15) * 3;
+
                 if (z.type === 'normal') {
-                    ctx.fillStyle = '#55ff55'; ctx.fillRect(z.x - 20, z.y - 25, 40, 50);
-                    ctx.fillStyle = '#ff3333'; ctx.fillRect(z.x - 12, z.y - 15, 6, 6);
-                } else if (z.type === 'sprinter') {
-                    ctx.fillStyle = '#ccff33'; ctx.fillRect(z.x - 16, z.y - 20, 32, 40);
-                    ctx.fillStyle = '#ff00ff'; ctx.fillRect(z.x - 10, z.y - 12, 5, 5);
-                } else if (z.type === 'tank') {
-                    ctx.fillStyle = '#115511'; ctx.fillRect(z.x - 28, z.y - 30, 56, 60);
-                    ctx.fillStyle = '#ffaa00'; ctx.fillRect(z.x - 18, z.y - 8, 8, 8);
-                } else if (z.type === 'boss') {
-                    ctx.fillStyle = '#331144'; ctx.fillRect(z.x - 45, z.y - 55, 90, 110);
-                    ctx.fillStyle = '#ffff55'; ctx.fillRect(z.x - 30, z.y - 55, 60, 15);
-                    ctx.fillStyle = '#ff0000'; ctx.fillRect(z.x - 25, z.y - 20, 12, 12); ctx.fillRect(z.x + 13, z.y - 20, 12, 12);
+                    // Shirt/Torso
+                    ctx.fillStyle = '#2b662b'; ctx.fillRect(z.x - 16, z.y - 12 + walkBop, 32, 22);
+                    // Ripped Blue Jeans
+                    ctx.fillStyle = '#2b4466'; ctx.fillRect(z.x - 14, z.y + 10 + walkBop, 28, 16);
+                    // Shuffling Outstretched Zombie Arms
+                    ctx.fillStyle = '#55cc55'; ctx.fillRect(z.x - 26, z.y - 8 + walkBop, 12, 6);
+                    // Rotting Head
+                    ctx.fillStyle = '#55cc55'; ctx.fillRect(z.x - 12, z.y - 28 + walkBop, 24, 18);
+                    // Sunken Black Eyes with Glowing Red Iris
+                    ctx.fillStyle = '#000'; ctx.fillRect(z.x - 10, z.y - 22 + walkBop, 6, 6);
+                    ctx.fillStyle = '#ff3333'; ctx.fillRect(z.x - 9, z.y - 21 + walkBop, 3, 3);
+                } 
+                else if (z.type === 'sprinter') {
+                    // Crimson Red Outfit
+                    ctx.fillStyle = '#aa2222'; ctx.fillRect(z.x - 14, z.y - 8 + walkBop, 28, 20);
+                    ctx.fillStyle = '#331111'; ctx.fillRect(z.x - 12, z.y + 12 + walkBop, 24, 12);
+                    // Forward Reaching Arms
+                    ctx.fillStyle = '#77dd77'; ctx.fillRect(z.x - 24, z.y - 4 + walkBop, 12, 5);
+                    // Head & Eyes
+                    ctx.fillStyle = '#77dd77'; ctx.fillRect(z.x - 10, z.y - 24 + walkBop, 20, 16);
+                    ctx.fillStyle = '#000'; ctx.fillRect(z.x - 8, z.y - 18 + walkBop, 5, 5);
+                    ctx.fillStyle = '#ff00ff'; ctx.fillRect(z.x - 7, z.y - 17 + walkBop, 3, 3);
+                } 
+                else if (z.type === 'tank') {
+                    // Heavy Bloated Armor Shell
+                    ctx.fillStyle = '#1e331e'; ctx.fillRect(z.x - 26, z.y - 20 + walkBop, 52, 44);
+                    ctx.fillStyle = '#443322'; ctx.fillRect(z.x - 22, z.y + 24 + walkBop, 44, 12);
+                    // Thick Arms
+                    ctx.fillStyle = '#33aa33'; ctx.fillRect(z.x - 36, z.y - 10 + walkBop, 14, 9);
+                    // Armor Plates
+                    ctx.fillStyle = '#555'; ctx.fillRect(z.x - 18, z.y - 12 + walkBop, 8, 8);
+                    // Gigantic Head
+                    ctx.fillStyle = '#33aa33'; ctx.fillRect(z.x - 16, z.y - 42 + walkBop, 32, 24);
+                    ctx.fillStyle = '#000'; ctx.fillRect(z.x - 12, z.y - 34 + walkBop, 8, 8);
+                    ctx.fillStyle = '#ffaa00'; ctx.fillRect(z.x - 10, z.y - 32 + walkBop, 4, 4);
+                } 
+                else if (z.type === 'boss') {
+                    // Massive Core Overlord Frame
+                    ctx.fillStyle = '#220a33'; ctx.fillRect(z.x - 42, z.y - 45 + walkBop, 84, 90);
+                    ctx.fillStyle = '#110522'; ctx.fillRect(z.x - 38, z.y + 45 + walkBop, 76, 15);
+                    // Massive Beating Crimson Crest
+                    ctx.fillStyle = '#ff3333'; ctx.fillRect(z.x - 30, z.y - 45 + walkBop, 60, 12);
+                    // Heavy Claw Arms
+                    ctx.fillStyle = '#5522aa'; ctx.fillRect(z.x - 60, z.y - 20 + walkBop, 22, 16);
+                    // Overlord Glowing Visor Sockets
+                    ctx.fillStyle = '#000'; 
+                    ctx.fillRect(z.x - 28, z.y - 15 + walkBop, 14, 14); 
+                    ctx.fillRect(z.x + 14, z.y - 15 + walkBop, 14, 14);
+                    ctx.fillStyle = '#ffff55'; 
+                    ctx.fillRect(z.x - 24, z.y - 11 + walkBop, 6, 6); 
+                    ctx.fillRect(z.x + 18, z.y - 11 + walkBop, 6, 6);
+                    
+                    // Boss Health Bar Placement UI
                     let pct = z.hp / z.maxHp;
-                    ctx.fillStyle = '#444'; ctx.fillRect(z.x - 50, z.y - 70, 100, 8);
-                    ctx.fillStyle = '#ff3333'; ctx.fillRect(z.x - 50, z.y - 70, 100 * pct, 8);
+                    ctx.fillStyle = '#333'; ctx.fillRect(z.x - 50, z.y - 65, 100, 8);
+                    ctx.fillStyle = '#ff3333'; ctx.fillRect(z.x - 50, z.y - 65, 100 * pct, 8);
                 }
                 ctx.restore();
             });
@@ -551,7 +599,8 @@
                         if (z.hp <= 0) {
                             collectables.push({
                                 x: z.x, y: z.y,
-                                amount: z.type === 'boss' ? 100 : (z.type === 'tank' ? 25 : 15),
+                                // 💡 BALANCING ECONOMIC FIX: Normal Zombies now drop 25 scrap from Level 1
+                                amount: z.type === 'boss' ? 100 : (z.type === 'tank' ? 35 : 25),
                                 pulse: 0
                             });
                             score += z.type === 'boss' ? 500 : (z.type === 'tank' ? 50 : 20);
@@ -609,7 +658,6 @@
                 let survivingTurrets = [];
                 for(let k = 0; k < turrets.length; k++) {
                     let targetTurret = turrets[k];
-                    // HARD CHECK: Only normal turrets placed or upgraded inside THIS active wave survive.
                     if (targetTurret.isNew === true && targetTurret.isCopterTurret !== true) {
                         targetTurret.isNew = false; 
                         survivingTurrets.push(targetTurret);
@@ -628,7 +676,6 @@
             }
         }
         
-        // Initial grid baseline paint run before starting loop
         ctx.fillStyle = '#0a1c0a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     </script>
 </body>
