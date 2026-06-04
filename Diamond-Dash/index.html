@@ -1,1 +1,565 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diamond Miner Dash!</title>
+    
+    <!-- Dynamic PNG Icon Generator for iPad -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const c = document.createElement('canvas'); c.width = 180; c.height = 180;
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#2c2c2c'; ctx.fillRect(0, 0, 180, 180);
+            ctx.fillStyle = '#55ffff'; ctx.beginPath(); ctx.moveTo(90, 25); ctx.lineTo(155, 80); ctx.lineTo(90, 155); ctx.lineTo(25, 80); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = '#00aaaa'; ctx.lineWidth = 8; ctx.stroke();
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(75, 55, 20, 20);
+            const url = c.toDataURL('image/png');
+            let l1 = document.createElement('link'); l1.rel = 'apple-touch-icon'; l1.href = url; document.head.appendChild(l1);
+            let l2 = document.createElement('link'); l2.rel = 'icon'; l2.type = 'image/png'; l2.href = url; document.head.appendChild(l2);
+        });
+    </script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #222;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #5c87e7;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 30px;
+            box-sizing: border-box;
+            pointer-events: none;
+        }
+
+        .hud-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .hud-text {
+            color: #fff;
+            font-size: 2rem;
+            font-weight: bold;
+            text-shadow: 3px 3px 0px #000;
+        }
+
+        #score { color: #55ffff; }
+        #lives { color: #ff5555; }
+        #level { color: #ffff55; }
+        #high-score { color: #ffaa00; font-size: 1.4rem; }
+
+        #game-canvas {
+            display: block;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            z-index: 10;
+            border: 10px solid #3c3c3c;
+            box-sizing: border-box;
+        }
+
+        .overlay h1 {
+            font-size: 3.5rem;
+            color: #55ff55;
+            margin-bottom: 10px;
+            text-align: center;
+            text-shadow: 4px 4px 0px #000;
+        }
+
+        .overlay p {
+            font-size: 1.3rem;
+            margin-bottom: 30px;
+            text-align: center;
+            max-width: 600px;
+            line-height: 1.6;
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            font-size: 1.8rem;
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            background: #00aa00;
+            color: white;
+            border: 4px solid #000;
+            box-shadow: inset -4px -4px 0px #005500, inset 4px 4px 0px #55ff55;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: #55ff55;
+            color: #000;
+            box-shadow: inset -4px -4px 0px #00aa00, inset 4px 4px 0px #ffffff;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="ui-layer">
+            <div class="hud-group">
+                <div class="hud-text">💎 Score: <span id="score">0</span></div>
+                <div class="hud-text" id="high-score">🏆 Best: <span id="best-score">0</span></div>
+            </div>
+            <div class="hud-text" style="text-align: center;">⭐ Level: <span id="level">1</span></div>
+            <div class="hud-text">❤️ Lives: <span id="lives">3</span></div>
+        </div>
+
+        <div id="start-screen" class="overlay">
+            <h1>DIAMOND MINER DASH</h1>
+            <p>Catch Gems & Rare ⭐ Stars for Invincibility!<br>Every 50 points advances to a dangerous new world.<br><br><span style="color: #ff5555; font-weight: bold;">⚠️ AVOID THE TNT! ⚠️</span></p>
+            <button class="btn" onclick="startGame()">START GAME</button>
+        </div>
+
+        <div id="game-over-screen" class="overlay hidden">
+            <h1>GAME OVER</h1>
+            <p>You reached Level <span id="final-level" style="color: #ffff55; font-weight: bold;">1</span> with <span id="final-score" style="color: #55ffff; font-weight: bold;">0</span> gems!</p>
+            <button class="btn" onclick="startGame()">RESPAWN 🔄</button>
+        </div>
+
+        <canvas id="game-canvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        const scoreEl = document.getElementById('score');
+        const bestEl = document.getElementById('best-score');
+        const levelEl = document.getElementById('level');
+        const livesEl = document.getElementById('lives');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const finalScoreEl = document.getElementById('final-score');
+        const finalLevelEl = document.getElementById('final-level');
+
+        let gameActive = false;
+        let score = 0;
+        let highScore = localStorage.getItem('branman_high') || 0;
+        let lives = 3;
+        let currentLevel = 1;
+        let items = [];
+        let particles = [];
+        
+        let spawnTimer = 0;
+        let spawnInterval = 50; 
+        let gameSpeed = 6.5; // Tuned up base speed
+        let screenShake = 0;
+        
+        let invincibleTimer = 0; 
+        let levelUpBannerTimer = 0; 
+
+        bestEl.textContent = highScore;
+
+        // Sound Engine
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'gem') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            } else if (type === 'star') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(554, audioCtx.currentTime + 0.1);
+                osc.frequency.setValueAtTime(659, audioCtx.currentTime + 0.2);
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+            } else if (type === 'levelup') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(330, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(392, audioCtx.currentTime + 0.1);
+                osc.frequency.setValueAtTime(659, audioCtx.currentTime + 0.2);
+                osc.frequency.setValueAtTime(523, audioCtx.currentTime + 0.3);
+                osc.frequency.setValueAtTime(587, audioCtx.currentTime + 0.4);
+                osc.frequency.setValueAtTime(784, audioCtx.currentTime + 0.5);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.8);
+            } else if (type === 'tnt') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(160, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(10, audioCtx.currentTime + 0.6);
+                gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.6);
+            } else if (type === 'miss') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(120, audioCtx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            }
+        }
+
+        const chest = { x: 0, y: 0, width: 115, height: 70 };
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            chest.y = canvas.height - 110;
+            if (!gameActive && items.length === 0) {
+                chest.x = canvas.width / 2 - chest.width / 2;
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function moveChest(e) {
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            chest.x = clientX - chest.width / 2;
+            if (chest.x < 0) chest.x = 0;
+            if (chest.x + chest.width > canvas.width) chest.x = canvas.width - chest.width;
+        }
+        window.addEventListener('mousemove', moveChest);
+        window.addEventListener('touchmove', moveChest, { passive: true });
+
+        function startGame() {
+            initAudio(); 
+            score = 0;
+            lives = 3;
+            currentLevel = 1;
+            items = [];
+            particles = [];
+            gameSpeed = 6.5; // Applied fast-start speed balance
+            spawnInterval = 50;
+            screenShake = 0;
+            invincibleTimer = 0;
+            levelUpBannerTimer = 0;
+            
+            scoreEl.textContent = score;
+            livesEl.textContent = lives;
+            levelEl.textContent = currentLevel;
+            bestEl.textContent = highScore;
+            
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            gameActive = true;
+            animate();
+        }
+
+        function spawnItem() {
+            const types = ['diamond', 'diamond', 'emerald', 'tnt', 'tnt'];
+            
+            if (Math.random() < 0.07) {
+                types.push('star');
+            }
+
+            const type = types[Math.floor(Math.random() * types.length)];
+            
+            items.push({
+                x: Math.random() * (canvas.width - 60) + 10,
+                y: -40,
+                width: 40,
+                height: 40,
+                type: type,
+                speed: gameSpeed + Math.random() * 2 + (currentLevel * 0.5)
+            });
+        }
+
+        function makeExplosion(x, y, customColors) {
+            screenShake = 15; 
+            const defaultColors = ['#ff3333', '#ff9900', '#ffcc00', '#ffffff', '#3c3c3c'];
+            const colors = customColors || defaultColors;
+            for (let i = 0; i < 30; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 14,
+                    vy: (Math.random() - 0.5) * 14 - 3, 
+                    size: Math.random() * 10 + 6,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    life: 25 + Math.random() * 15
+                });
+            }
+        }
+
+        function getBackgroundGradient() {
+            let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            if (currentLevel === 1) {
+                grad.addColorStop(0, '#5c87e7');
+                grad.addColorStop(1, '#a3c2ff');
+            } else if (currentLevel === 2) {
+                grad.addColorStop(0, '#e65c00');
+                grad.addColorStop(1, '#f9d423');
+            } else if (currentLevel === 3) {
+                grad.addColorStop(0, '#0f0c20');
+                grad.addColorStop(1, '#24243e');
+            } else {
+                grad.addColorStop(0, '#3a0d0d');
+                grad.addColorStop(1, '#140303');
+            }
+            return grad;
+        }
+
+        function drawChest() {
+            ctx.save();
+            
+            if (invincibleTimer > 0 && Math.floor(invincibleTimer / 4) % 2 === 0) {
+                ctx.fillStyle = '#ffcc00';
+                ctx.strokeStyle = '#ffffff';
+            } else {
+                ctx.fillStyle = '#8B5A2B';
+                ctx.strokeStyle = '#4A2F15';
+            }
+
+            ctx.fillRect(chest.x, chest.y, chest.width, chest.height);
+            ctx.lineWidth = 6;
+            ctx.strokeRect(chest.x + 3, chest.y + 3, chest.width - 6, chest.height - 6);
+            
+            ctx.fillStyle = (invincibleTimer > 0) ? '#ffaa00' : '#4A2F15';
+            ctx.fillRect(chest.x, chest.y + 22, chest.width, 6);
+            
+            ctx.fillStyle = '#C0C0C0';
+            ctx.fillRect(chest.x + (chest.width / 2) - 8, chest.y + 16, 16, 18);
+            ctx.fillStyle = '#555555';
+            ctx.fillRect(chest.x + (chest.width / 2) - 4, chest.y + 24, 8, 10);
+            
+            ctx.restore();
+        }
+
+        function drawItem(item) {
+            ctx.save();
+            if (item.type === 'diamond') {
+                ctx.fillStyle = '#55ffff';
+                ctx.beginPath();
+                ctx.moveTo(item.x + 20, item.y);
+                ctx.lineTo(item.x + 40, item.y + 15);
+                ctx.lineTo(item.x + 20, item.y + 40);
+                ctx.lineTo(item.x, item.y + 15);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(item.x + 16, item.y + 10, 6, 6);
+            } else if (item.type === 'emerald') {
+                ctx.fillStyle = '#55ff55';
+                ctx.beginPath();
+                ctx.moveTo(item.x + 20, item.y);
+                ctx.lineTo(item.x + 38, item.y + 10);
+                ctx.lineTo(item.x + 38, item.y + 30);
+                ctx.lineTo(item.x + 20, item.y + 40);
+                ctx.lineTo(item.x + 2, item.y + 30);
+                ctx.lineTo(item.x + 2, item.y + 10);
+                ctx.closePath();
+                ctx.fill();
+            } else if (item.type === 'tnt') {
+                ctx.fillStyle = '#ff5555';
+                ctx.fillRect(item.x, item.y, 40, 40);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(item.x, item.y + 12, 40, 16);
+                ctx.fillStyle = '#000000';
+                ctx.font = 'bold 11px Arial';
+                ctx.fillText('TNT', item.x + 7, item.y + 25);
+                ctx.fillStyle = '#3c3c3c';
+                ctx.fillRect(item.x + 5, item.y, 4, 4);
+                ctx.fillRect(item.x + 20, item.y, 4, 4);
+                ctx.fillRect(item.x + 30, item.y, 4, 4);
+            } else if (item.type === 'star') {
+                ctx.fillStyle = '#ffff55';
+                ctx.beginPath();
+                ctx.moveTo(item.x + 20, item.y);
+                ctx.lineTo(item.x + 25, item.y + 15);
+                ctx.lineTo(item.x + 40, item.y + 15);
+                ctx.lineTo(item.x + 28, item.y + 25);
+                ctx.lineTo(item.x + 33, item.y + 40);
+                ctx.lineTo(item.x + 20, item.y + 30);
+                ctx.lineTo(item.x + 7, item.y + 40);
+                ctx.lineTo(item.x + 12, item.y + 25);
+                ctx.lineTo(item.x, item.y + 15);
+                ctx.lineTo(item.x + 15, item.y + 15);
+                ctx.closePath();
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        function checkGameOver() {
+            if (lives <= 0) {
+                gameActive = false;
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem('branman_high', highScore);
+                }
+                finalScoreEl.textContent = score;
+                finalLevelEl.textContent = currentLevel;
+                gameOverScreen.classList.remove('hidden');
+            }
+        }
+
+        function animate() {
+            if (!gameActive) return;
+
+            ctx.save();
+            
+            if (screenShake > 0) {
+                let dx = (Math.random() - 0.5) * screenShake;
+                let dy = (Math.random() - 0.5) * screenShake;
+                ctx.translate(dx, dy);
+                screenShake *= 0.9;
+                if (screenShake < 0.5) screenShake = 0;
+            }
+
+            ctx.fillStyle = getBackgroundGradient();
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = (currentLevel === 4) ? '#2a0808' : '#866043'; 
+            ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+            ctx.fillStyle = (currentLevel === 4) ? '#ff5500' : '#578b32'; 
+            ctx.fillRect(0, canvas.height - 40, canvas.width, 10);
+
+            drawChest();
+
+            if (invincibleTimer > 0) invincibleTimer--;
+
+            spawnTimer++;
+            if (spawnTimer >= spawnInterval) {
+                spawnItem();
+                spawnTimer = 0;
+                if (spawnInterval > 18) spawnInterval -= 0.3;
+            }
+
+            for (let i = items.length - 1; i >= 0; i--) {
+                let item = items[i];
+                item.y += item.speed;
+
+                drawItem(item);
+
+                if (item.y + item.height >= chest.y && 
+                    item.y <= chest.y + chest.height &&
+                    item.x + item.width >= chest.x && 
+                    item.x <= chest.x + chest.width) {
+                    
+                    items.splice(i, 1);
+
+                    if (item.type === 'tnt') {
+                        playSound('tnt');
+                        makeExplosion(item.x + 20, item.y + 20);
+                        
+                        if (invincibleTimer <= 0) {
+                            lives--;
+                            livesEl.textContent = lives;
+                        }
+                    } else if (item.type === 'star') {
+                        playSound('star');
+                        makeExplosion(item.x + 20, item.y + 20, ['#ffff55', '#ffffff']);
+                        invincibleTimer = 300; 
+                    } else {
+                        playSound('gem');
+                        let pointsGained = (item.type === 'emerald') ? 2 : 1;
+                        score += pointsGained;
+                        scoreEl.textContent = score;
+
+                        let calculatedLevel = Math.floor(score / 50) + 1;
+                        if (calculatedLevel > currentLevel) {
+                            currentLevel = calculatedLevel;
+                            levelEl.textContent = currentLevel;
+                            levelUpBannerTimer = 90; 
+                            playSound('levelup');
+                            gameSpeed += 1;
+                        }
+                    }
+
+                    checkGameOver();
+                    continue;
+                }
+
+                if (item.y > canvas.height - 40) {
+                    items.splice(i, 1);
+                    
+                    if (item.type !== 'tnt' && item.type !== 'star') {
+                        playSound('miss');
+                        lives--;
+                        livesEl.textContent = lives;
+                        checkGameOver();
+                    }
+                }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx; p.y += p.vy; p.life--;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            if (levelUpBannerTimer > 0) {
+                levelUpBannerTimer--;
+                ctx.save();
+                ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                ctx.fillRect(0, canvas.height/2 - 70, canvas.width, 130);
+                
+                ctx.font = 'bold 3.5rem Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#ffff55';
+                ctx.shadowColor = '#000';
+                ctx.shadowOffsetX = 4;
+                ctx.shadowOffsetY = 4;
+                ctx.fillText(`🚀 LEVEL ${currentLevel} 🚀`, canvas.width / 2, canvas.height / 2 - 10);
+                
+                ctx.font = '1.5rem Courier New';
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText('SPEED INCREASED!', canvas.width / 2, canvas.height / 2 + 35);
+                ctx.restore();
+            }
+
+            ctx.restore();
+            requestAnimationFrame(animate);
+        }
+    </script>
+</body>
+</html>
