@@ -135,7 +135,6 @@
         let cellWidth, cellHeight;
 
         let gameActive = false;
-        let loopInitialized = false;
         let currentWave = 1;
         let scrap = 100;
         let score = 0;
@@ -252,13 +251,12 @@
 
         function handleCanvasTap(clientX, clientY) {
             if (!gameActive) return;
-            initAudio();
             
             const rect = canvas.getBoundingClientRect();
             const tapX = clientX - rect.left;
             const tapY = clientY - rect.top;
 
-            // Check collectables click zone first
+            // Check resource collection click zones
             for (let i = collectables.length - 1; i >= 0; i--) {
                 let item = collectables[i];
                 let dist = Math.hypot(tapX - item.x, tapY - item.y);
@@ -281,7 +279,7 @@
 
             let existingTurret = turrets.find(t => t.row === row && t.col === col);
 
-            // Handle Upgrade Cycle
+            // Handle existing asset speeds modifications 
             if (existingTurret && !isPlacingTurret) {
                 if (existingTurret.isCopterTurret) {
                     playSfx('crunch');
@@ -301,7 +299,7 @@
                 return;
             }
 
-            // Handle New Placement Cycle (With verified safe variable mapping)
+            // Fixed placement safety pipeline
             if (isPlacingTurret && !existingTurret) {
                 if (scrap >= TURRET_COST) {
                     scrap -= TURRET_COST;
@@ -379,11 +377,6 @@
             generateWaveData();
             gameActive = true; 
             updateShopButtons();
-            
-            if (!loopInitialized) {
-                loopInitialized = true;
-                animate();
-            }
         }
 
         function restartGame() {
@@ -436,6 +429,7 @@
 
             ctx.fillStyle = '#0a1c0a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+            // Grid Rendering Architecture
             ctx.strokeStyle = 'rgba(85, 255, 85, 0.08)'; ctx.lineWidth = 2;
             for (let i = 0; i <= ROWS; i++) {
                 ctx.beginPath(); ctx.moveTo(0, i * cellHeight); ctx.lineTo(canvas.width, i * cellHeight); ctx.stroke();
@@ -445,6 +439,7 @@
             }
             ctx.fillStyle = '#ff5555'; ctx.fillRect(0, 0, 8, canvas.height);
 
+            // Turret Assets Drawing Matrix
             turrets.forEach(t => {
                 ctx.fillStyle = t.isCopterTurret ? '#55ffff' : (t.level === 2 ? '#ff55ff' : '#ffaa00');
                 ctx.beginPath();
@@ -457,7 +452,7 @@
                 }
             });
 
-            // Zombie Art Render Logic
+            // Zombie Art Render Core
             zombies.forEach(z => {
                 ctx.save();
                 let walkBop = Math.sin(z.x * 0.15) * 3;
@@ -482,4 +477,187 @@
                     ctx.fillStyle = '#1e331e'; ctx.fillRect(z.x - 26, z.y - 20 + walkBop, 52, 44);
                     ctx.fillStyle = '#443322'; ctx.fillRect(z.x - 22, z.y + 24 + walkBop, 44, 12);
                     ctx.fillStyle = '#33aa33'; ctx.fillRect(z.x - 36, z.y - 10 + walkBop, 14, 9);
-                    ctx.fillStyle = '#555'; ctx.fillRect(z.x - 18, z
+                    ctx.fillStyle = '#555'; ctx.fillRect(z.x - 18, z.y - 12 + walkBop, 8, 8);
+                    ctx.fillStyle = '#33aa33'; ctx.fillRect(z.x - 16, z.y - 42 + walkBop, 32, 24);
+                    ctx.fillStyle = '#000'; ctx.fillRect(z.x - 12, z.y - 34 + walkBop, 8, 8);
+                    ctx.fillStyle = '#ffaa00'; ctx.fillRect(z.x - 10, z.y - 32 + walkBop, 4, 4);
+                } 
+                else if (z.type === 'boss') {
+                    ctx.fillStyle = '#220a33'; ctx.fillRect(z.x - 42, z.y - 45 + walkBop, 84, 90);
+                    ctx.fillStyle = '#110522'; ctx.fillRect(z.x - 38, z.y + 45 + walkBop, 76, 15);
+                    ctx.fillStyle = '#ff3333'; ctx.fillRect(z.x - 30, z.y - 45 + walkBop, 60, 12);
+                    ctx.fillStyle = '#5522aa'; ctx.fillRect(z.x - 60, z.y - 20 + walkBop, 22, 16);
+                    ctx.fillStyle = '#000'; 
+                    ctx.fillRect(z.x - 28, z.y - 15 + walkBop, 14, 14); 
+                    ctx.fillRect(z.x + 14, z.y - 15 + walkBop, 14, 14);
+                    ctx.fillStyle = '#ffff55'; 
+                    ctx.fillRect(z.x - 24, z.y - 11 + walkBop, 6, 6); 
+                    ctx.fillRect(z.x + 18, z.y - 11 + walkBop, 6, 6);
+                    
+                    let pct = z.hp / z.maxHp;
+                    ctx.fillStyle = '#333'; ctx.fillRect(z.x - 50, z.y - 65, 100, 8);
+                    ctx.fillStyle = '#ff3333'; ctx.fillRect(z.x - 50, z.y - 65, 100 * pct, 8);
+                }
+                ctx.restore();
+            });
+
+            projectiles.forEach(p => {
+                ctx.fillStyle = '#ffff55'; ctx.fillRect(p.x, p.y - 3, 14, 6);
+            });
+
+            collectables.forEach(item => {
+                ctx.fillStyle = 'rgba(255, 255, 85, 0.4)'; ctx.beginPath();
+                ctx.arc(item.x, item.y, 24, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#ffff55'; ctx.beginPath();
+                ctx.arc(item.x, item.y, 16, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#000'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
+                ctx.fillText('⚙️', item.x, item.y + 5);
+            });
+
+            for (let i = animations.length - 1; i >= 0; i--) {
+                let anim = animations[i];
+                if (anim.type === 'brancopter_sweep') {
+                    if (gameActive) anim.x += anim.speed;
+                    ctx.save();
+                    ctx.fillStyle = '#55ffff'; ctx.fillRect(anim.x - 40, anim.y - 20, 80, 40);
+                    ctx.fillStyle = '#ffffff'; ctx.fillRect(anim.x - 65, anim.y - 30, 130, 6);
+                    ctx.fillStyle = '#ffaa00'; ctx.fillRect(anim.x + 20, anim.y + 5, 25, 10);
+                    ctx.fillStyle = '#000000'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center';
+                    ctx.fillText('B', anim.x, anim.y + 10);
+                    ctx.restore();
+                    if (anim.x > canvas.width + 100) { animations.splice(i, 1); }
+                }
+            }
+
+            if (!gameActive) return;
+
+            // 1. TURRET PHYSICS
+            turrets.forEach(t => {
+                t.fireCooldown++;
+                if (t.fireCooldown >= t.maxCooldown) {
+                    let targetExists = zombies.some(z => z.row === t.row && z.x > t.x);
+                    if (targetExists) {
+                        projectiles.push({ x: t.x + 20, y: t.y, speed: 7, row: t.row });
+                        playSfx('laser');
+                        t.fireCooldown = 0;
+                    }
+                }
+            });
+
+            // 2. SPAWN LOGIC
+            if (zombiesToSpawn.length > 0) {
+                spawnCountdown--;
+                if (spawnCountdown <= 0) {
+                    let proto = zombiesToSpawn.shift();
+                    let assignedRow = Math.floor(Math.random() * ROWS);
+                    zombies.push({
+                        x: canvas.width + 40,
+                        y: assignedRow * cellHeight + cellHeight / 2,
+                        row: assignedRow,
+                        type: proto.type,
+                        hp: proto.hp,
+                        maxHp: proto.maxHp || proto.hp,
+                        speed: proto.speed,
+                        eatingTimer: 0
+                    });
+                    spawnCountdown = Math.max(20, 85 - (currentWave * 5));
+                }
+            }
+
+            // 3. PROJECTILE IMPACT ANALYSIS
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                let p = projectiles[i];
+                p.x += p.speed;
+                if (p.x > canvas.width) { projectiles.splice(i, 1); continue; }
+
+                for (let j = zombies.length - 1; j >= 0; j--) {
+                    let z = zombies[j];
+                    if (z.row === p.row && Math.abs(p.x - z.x) < 30) {
+                        z.hp--;
+                        projectiles.splice(i, 1);
+                        playSfx('crunch');
+
+                        if (z.hp <= 0) {
+                            collectables.push({
+                                x: z.x, y: z.y,
+                                amount: z.type === 'boss' ? 100 : (z.type === 'tank' ? 35 : 25),
+                                pulse: 0
+                            });
+                            score += z.type === 'boss' ? 500 : (z.type === 'tank' ? 50 : 20);
+                            scoreDisplay.textContent = score;
+                            updateShopButtons();
+                            zombies.splice(j, 1);
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // 4. ZOMBIE GRID PROGRESSION
+            for (let i = zombies.length - 1; i >= 0; i--) {
+                let z = zombies[i];
+                let blocked = false;
+
+                for (let j = turrets.length - 1; j >= 0; j--) {
+                    let t = turrets[j];
+                    if (t.row === z.row && Math.abs(z.x - t.x) < cellWidth * 0.5) {
+                        blocked = true;
+                        z.eatingTimer++;
+                        if (z.eatingTimer >= 40) {
+                            t.hp--;
+                            playSfx('crunch');
+                            z.eatingTimer = 0;
+                            if (t.hp <= 0) { turrets.splice(j, 1); updateShopButtons(); }
+                        }
+                        break;
+                    }
+                }
+
+                if (!blocked) { z.x -= z.speed; }
+
+                if (z.x <= 8) {
+                    baseHp -= z.type === 'boss' ? 50 : (z.type === 'tank' ? 20 : 10);
+                    baseHp = Math.max(0, baseHp);
+                    baseHpDisplay.textContent = baseHp;
+                    playSfx('alarm');
+                    zombies.splice(i, 1);
+
+                    if (baseHp <= 0) {
+                        gameActive = false;
+                        document.getElementById('final-wave').textContent = currentWave;
+                        document.getElementById('final-score').textContent = score;
+                        gameOverScreen.classList.remove('hidden');
+                    }
+                }
+            }
+
+            // 5. EVALUATE WAVE STATUS
+            if (zombiesToSpawn.length === 0 && zombies.length === 0) {
+                gameActive = false;
+                
+                let survivingTurrets = [];
+                for(let k = 0; k < turrets.length; k++) {
+                    let targetTurret = turrets[k];
+                    if (targetTurret.isNew === true && targetTurret.isCopterTurret !== true) {
+                        targetTurret.isNew = false; 
+                        survivingTurrets.push(targetTurret);
+                    }
+                }
+                turrets = survivingTurrets;
+                
+                if (currentWave % 5 === 0) {
+                    clearTitle.textContent = `👑 BOSS SECTOR DEFEATED! 👑`;
+                    clearDesc.innerHTML = `Incredible work, Commander Branson! You completely shattered the Mega Zombie Boss line.<br><br>Receive your bonus heavy supply cargo allocations.`;
+                } else {
+                    clearTitle.textContent = `WAVE ${currentWave} CLEARED!`;
+                    clearDesc.textContent = `Excellent defense arrays, Branson. Old and support assets have expired. The rolling boundary has updated.`;
+                }
+                waveClearScreen.classList.remove('hidden');
+            }
+        }
+        
+        // Start rendering immediately so things process natively
+        animate();
+    </script>
+</body>
+</html>
