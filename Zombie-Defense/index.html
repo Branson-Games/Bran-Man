@@ -39,7 +39,7 @@
         #score-display { color: #55ffff; }
         #wave-display { color: #ff55ff; }
         #base-hp-container { display: flex; align-items: center; gap: 8px; color: #ff5555; }
-        #game-canvas { display: block; background: #0a1c0a; flex-grow: 1; }
+        #game-canvas { display: block; background: #0a1c0a; flex-grow: 1; touch-action: none; }
         #control-panel {
             background: #020502; border-top: 4px solid #55ff55;
             padding: 15px 20px; display: flex; justify-content: space-around; align-items: center; gap: 15px;
@@ -93,15 +93,16 @@
             </div>
         </div>
 
+        <!-- Screens -->
         <div id="start-screen" class="overlay">
             <h1>ZOMBIE FARM DEFENDER</h1>
-            <p>Welcome back, Commander Branson!<br><br>Zombies are attacking from the right side. Tap <b>Place Turret</b>, then tap an empty square to build.<br><br><b>TACTICAL RULES:</b> Tap an existing turret to <b>UPGRADE</b> its speed for 30 Scrap. Turrets only last for 1 wave cycle after the wave they are built in!</p>
+            <p>Welcome back, Commander Branson!<br><br>Zombies attack from the right. Tap <b>Place Turret</b>, then tap any empty grid block to build.<br><br><b>TACTICAL CYCLE:</b> Tap an existing turret to <b>UPGRADE</b> its speed for 30 Scrap! Turrets only survive for 1 wave after the wave they are built or upgraded in.</p>
             <button class="btn-action" onclick="startGame()">ENGAGE DEFENSE ⚡</button>
         </div>
 
         <div id="wave-clear-screen" class="overlay hidden">
             <h1 id="clear-title">WAVE CLEARED!</h1>
-            <p id="clear-desc">Fantastic positioning, Branson. Old defenses have expired, survivors carry forward.</p>
+            <p id="clear-desc">Old un-upgraded assets expired. Survivors carried forward to the defensive perimeter.</p>
             <button class="btn-action" onclick="startNextWave()">START NEXT WAVE 🔄</button>
         </div>
 
@@ -238,11 +239,11 @@
                         row: r, col: c,
                         x: c * cellWidth + cellWidth / 2,
                         y: r * cellHeight + cellHeight / 2,
-                        fireCooldown: Math.random() * 30,
+                        fireCooldown: Math.random() * 20,
                         maxCooldown: 20,
                         hp: 5,
                         isCopterTurret: true,
-                        isNew: true, // Copter ones will be wiped anyway
+                        isNew: true, // Marked true, but filtered out on wave clear explicitly anyway
                         level: 1
                     });
                     deployedCount++;
@@ -251,11 +252,14 @@
         }
 
         function handleCanvasTap(clientX, clientY) {
+            if (!gameActive) return;
             initAudio();
+            
             const rect = canvas.getBoundingClientRect();
             const tapX = clientX - rect.left;
             const tapY = clientY - rect.top;
 
+            // 1. Scrap Item Collection Collision Check
             for (let i = collectables.length - 1; i >= 0; i--) {
                 let item = collectables[i];
                 let dist = Math.hypot(tapX - item.x, tapY - item.y);
@@ -274,14 +278,21 @@
             let col = Math.floor(tapX / cellWidth);
             let row = Math.floor(tapY / cellHeight);
 
+            if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
+
             let existingTurret = turrets.find(t => t.row === row && t.col === col);
-            if (existingTurret && gameActive && !isPlacingTurret) {
+
+            // 2. Clicked an existing standard turret (UPGRADE PATH)
+            if (existingTurret && !isPlacingTurret) {
+                if (existingTurret.isCopterTurret) {
+                    playSfx('crunch'); // Can't upgrade temporary support copter arrays
+                    return;
+                }
                 if (scrap >= UPGRADE_COST && existingTurret.level === 1) {
                     scrap -= UPGRADE_COST;
                     existingTurret.level = 2;
-                    existingTurret.maxCooldown = 20;
-                    // Upgraded turrets count as newly interacted/saved for the rolling window
-                    existingTurret.isNew = true; 
+                    existingTurret.maxCooldown = 18; // Hyper speeds weapon
+                    existingTurret.isNew = true;     // Refreshes identity so it survives this wave clean loop!
                     scrapDisplay.textContent = scrap;
                     playSfx('bloop');
                     updateShopButtons();
@@ -291,37 +302,35 @@
                 return;
             }
 
-            if (isPlacingTurret && gameActive) {
-                if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
-                    if (!existingTurret) {
-                        scrap -= TURRET_COST;
-                        scrapDisplay.textContent = scrap;
-                        
-                        turrets.push({
-                            row: row, col: col,
-                            x: col * cellWidth + cellWidth / 2,
-                            y: row * cellHeight + cellHeight / 2,
-                            fireCooldown: 0,
-                            maxCooldown: 45,
-                            hp: 3,
-                            isCopterTurret: false,
-                            isNew: true, // Marked brand new! Will survive exactly one level clear phase.
-                            level: 1
-                        });
+            // 3. Clicked empty square while placement mode is true (BUILD PATH)
+            if (isPlacingTurret && !existingTurret) {
+                scrap -= TURRET_COST;
+                scrapDisplay.textContent = scrap;
+                
+                turrets.push({
+                    row: row, col: col,
+                    x: col * cellWidth + cellWidth / 2,
+                    y: row * cellHeight + cellHeight / 2,
+                    fireCooldown: 0,
+                    maxCooldown: 45,
+                    hp: 3,
+                    isCopterTurret: false,
+                    isNew: true, // Survives the immediate upcoming wave cleanup
+                    level: 1
+                });
 
-                        playSfx('bloop');
-                        isPlacingTurret = false;
-                        btnTurret.style.background = '#ffaa00';
-                        updateShopButtons();
-                    }
-                }
+                playSfx('bloop');
+                isPlacingTurret = false;
+                btnTurret.style.background = '#ffaa00';
+                updateShopButtons();
             }
         }
 
-        canvas.addEventListener('click', (e) => handleCanvasTap(e.clientX, e.clientY));
-        canvas.addEventListener('touchstart', (e) => {
-            handleCanvasTap(e.touches[0].clientX, e.touches[0].clientY);
-        }, { passive: true });
+        // Standardized Pointer Events prevent web ghost click dual-triggers
+        canvas.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            handleCanvasTap(e.clientX, e.clientY);
+        });
 
         function updateShopButtons() {
             if (scrap >= TURRET_COST) { btnTurret.classList.remove('disabled'); } 
@@ -495,7 +504,7 @@
 
             if (!gameActive) return;
 
-            // 1. TURRET LOGIC
+            // 1. TURRET PHYSICS
             turrets.forEach(t => {
                 t.fireCooldown++;
                 if (t.fireCooldown >= t.maxCooldown) {
@@ -508,7 +517,7 @@
                 }
             });
 
-            // 2. SPAWN SEQUENCER
+            // 2. SPAWN LOGIC
             if (zombiesToSpawn.length > 0) {
                 spawnCountdown--;
                 if (spawnCountdown <= 0) {
@@ -528,7 +537,7 @@
                 }
             }
 
-            // 3. PROJECTILE LOGIC
+            // 3. PROJECTILE IMPACT ANALYSIS
             for (let i = projectiles.length - 1; i >= 0; i--) {
                 let p = projectiles[i];
                 p.x += p.speed;
@@ -557,7 +566,7 @@
                 }
             }
 
-            // 4. ZOMBIE LOGIC
+            // 4. ZOMBIE GRID PROGRESSION
             for (let i = zombies.length - 1; i >= 0; i--) {
                 let z = zombies[i];
                 let blocked = false;
@@ -595,23 +604,29 @@
                 }
             }
 
-            // 5. EVALUATE WAVE CLEAR STATUS (ROLLING SYSTEM DEPLOYED HERE)
+            // 5. EVALUATE WAVE STATUS & FILTER (EXPIRED OR COPTER UNITS DROPPED ABSOLUTELY)
             if (zombiesToSpawn.length === 0 && zombies.length === 0) {
                 gameActive = false;
                 
-                // Keep ONLY the normal turrets placed or upgraded DURING this specific wave.
-                // Anything older or spawned by the Copter drops out right here.
-                turrets = turrets.filter(t => t.isNew && !t.isCopterTurret);
-                
-                // Age the survivors: strip the 'isNew' tag so they must be updated or replaced next wave!
-                turrets.forEach(t => t.isNew = false);
+                // EXPLICIT CLEANUP: Only keep standard turrets built or upgraded inside THIS wave window.
+                // If isNew is false or if it's a Copter turret, it is vaporized right here.
+                let survivingTurrets = [];
+                for(let k = 0; k < turrets.length; k++) {
+                    let targetTurret = turrets[k];
+                    if (targetTurret.isNew === true && targetTurret.isCopterTurret !== true) {
+                        // Strip the tag so it becomes an "old" turret for the upcoming wave configuration
+                        targetTurret.isNew = false; 
+                        survivingTurrets.push(targetTurret);
+                    }
+                }
+                turrets = survivingTurrets;
                 
                 if (currentWave % 5 === 0) {
                     clearTitle.textContent = `👑 BOSS SECTOR DEFEATED! 👑`;
                     clearDesc.innerHTML = `Incredible work, Commander Branson! You completely shattered the Mega Zombie Boss line.<br><br>Receive your bonus heavy supply cargo allocations.`;
                 } else {
                     clearTitle.textContent = `WAVE ${currentWave} CLEARED!`;
-                    clearDesc.textContent = `Excellent defense arrays, Branson. Old defenses have vanished, the rolling perimeter has recycled.`;
+                    clearDesc.textContent = `Excellent defense arrays, Branson. Old and support assets have expired. The rolling boundary has updated.`;
                 }
                 waveClearScreen.classList.remove('hidden');
             }
