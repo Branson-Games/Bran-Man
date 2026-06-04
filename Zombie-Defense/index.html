@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BRAN-MAN: Zombie Farm Defender</title>
     
-    <!-- Dynamic Apple Icon Generator (Custom Zombie/Turret Hybrid Logo) -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const c = document.createElement('canvas'); c.width = 180; c.height = 180;
@@ -30,8 +29,6 @@
             position: relative; width: 100vw; height: 100vh;
             display: flex; flex-direction: column; justify-content: space-between;
         }
-        
-        /* Top HUD styling */
         #hud {
             display: flex; justify-content: space-between; align-items: center;
             padding: 15px 25px; background: rgba(10, 20, 10, 0.9);
@@ -42,11 +39,7 @@
         #score-display { color: #55ffff; }
         #wave-display { color: #ff55ff; }
         #base-hp-container { display: flex; align-items: center; gap: 8px; color: #ff5555; }
-        
-        /* Main Interactive Canvas Field */
         #game-canvas { display: block; background: #0a1c0a; flex-grow: 1; }
-
-        /* Bottom iPad Dock controls */
         #control-panel {
             background: #020502; border-top: 4px solid #55ff55;
             padding: 15px 20px; display: flex; justify-content: space-around; align-items: center; gap: 15px;
@@ -58,15 +51,12 @@
         }
         #btn-turret { background: #ffaa00; color: #000; box-shadow: inset -4px -4px 0 #995500, inset 4px 4px 0 #ffff55; }
         #btn-brancopter { background: #55ffff; color: #000; box-shadow: inset -4px -4px 0 #00aaaa, inset 4px 4px 0 #ffffff; }
-        
         .disabled { opacity: 0.4 !important; filter: grayscale(80%); cursor: not-allowed !important; }
         .btn-sub { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
-
-        /* Center Display Notification screens */
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            background: rgba(5, 12, 5, 0.92); color: white; z-index: 10;
+            background: rgba(5, 12, 5, 0.94); color: white; z-index: 10;
             border: 8px solid #55ff55; box-sizing: border-box; padding: 20px;
         }
         .overlay h1 { font-size: 3rem; color: #55ff55; margin-bottom: 15px; text-align: center; text-shadow: 4px 4px 0px #000; }
@@ -83,7 +73,6 @@
 <body>
 
     <div id="game-container">
-        <!-- HUD Statistics Banner -->
         <div id="hud">
             <div class="hud-item" id="scrap-display">⚙️ Scrap: <span>100</span></div>
             <div class="hud-item" id="base-hp-container">🛡️ Base HP: <span id="base-hp">100</span>%</div>
@@ -91,10 +80,8 @@
             <div class="hud-item" id="score-display">🏆 Points: <span>0</span></div>
         </div>
 
-        <!-- Battlefield Area Grid -->
         <canvas id="game-canvas"></canvas>
 
-        <!-- Dynamic Store / Ability Placement Tray -->
         <div id="control-panel">
             <div id="btn-turret" class="shop-btn" onclick="selectTurret()">
                 <span>🛠️ Place Turret</span>
@@ -106,25 +93,23 @@
             </div>
         </div>
 
-        <!-- Launch Screen Overlay -->
+        <!-- Screens -->
         <div id="start-screen" class="overlay">
             <h1>ZOMBIE FARM DEFENDER</h1>
-            <p>Welcome back, Commander Branson!<br><br>Zombies are attacking the farm perimeter grid from the right side. Tap the <b>Place Turret</b> button, then tap any empty square on the grid map to build defense grids.<br><br>Collect yellow glow scrap metal to afford replacements, and call in the tactical <b>BRANCOPTER Air Deploy</b> when your score points fill the bar!</p>
+            <p>Welcome back, Commander Branson!<br><br>Zombies are attacking from the right side. Tap <b>Place Turret</b>, then tap any grid square to build your defenses.<br><br>Collect yellow glowing scrap metal items, and call in the tactical <b>BRANCOPTER Air Deploy</b> when your score points fill up!</p>
             <button class="btn-action" onclick="startGame()">ENGAGE DEFENSE ⚡</button>
         </div>
 
-        <!-- Level transition interim panel -->
         <div id="wave-clear-screen" class="overlay hidden">
             <h1 id="clear-title">WAVE CLEARED!</h1>
-            <p id="clear-desc">Fantastic positioning, Branson. The farmyard perimeter secure for now. Incoming salvos are growing heavier.</p>
+            <p id="clear-desc">Fantastic positioning, Branson. Perimeter secure for now.</p>
             <button class="btn-action" onclick="startNextWave()">START NEXT WAVE 🔄</button>
         </div>
 
-        <!-- Survival Fail Window -->
         <div id="game-over-screen" class="overlay hidden">
             <h1 style="color: #ff5555;">PERIMETER BREACHED</h1>
-            <p>Branson, the base took too much damage! You successfully repelled forces up to <b>Wave <span id="final-wave" style="color: #ff55ff;">1</span></b> and collected <b><span id="final-score" style="color: #55ffff;">0</span> points</b>.</p>
-            <button class="btn-action" onclick="startGame()">REDEPLOY DEFENSES 🛠️</button>
+            <p>Branson, the base took too much damage! You reached <b>Wave <span id="final-wave" style="color: #ff55ff;">1</span></b> and collected <b><span id="final-score" style="color: #55ffff;">0</span> points</b>.</p>
+            <button class="btn-action" onclick="restartGame()">REDEPLOY DEFENSES 🛠️</button>
         </div>
     </div>
 
@@ -132,7 +117,6 @@
         const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d');
 
-        // Setup DOM Hooks
         const scrapDisplay = document.querySelector('#scrap-display span');
         const scoreDisplay = document.querySelector('#score-display span');
         const waveDisplay = document.querySelector('#wave-display span');
@@ -147,13 +131,12 @@
         const clearTitle = document.getElementById('clear-title');
         const clearDesc = document.getElementById('clear-desc');
 
-        // Grid Configuration (Balanced perfectly for iPad viewing aspect ratios)
         const ROWS = 5;
         const COLS = 8;
         let cellWidth, cellHeight;
 
-        // Core Dynamic State
         let gameActive = false;
+        let loopInitialized = false;
         let currentWave = 1;
         let scrap = 100;
         let score = 0;
@@ -163,17 +146,15 @@
         let zombies = [];
         let projectiles = [];
         let collectables = [];
-        let animations = []; // Handles visual indicators like Brancopter pass animations
+        let animations = [];
 
         let isPlacingTurret = false;
         const TURRET_COST = 50;
-        const BRANCOPTER_COST_POINTS = 300; // Point requirements to trigger the Brancopter support loop
+        const BRANCOPTER_COST_POINTS = 300;
 
-        // Zombie wave orchestrator registers
         let zombiesToSpawn = [];
         let spawnCountdown = 0;
 
-        // Micro Arcade Web-Audio Synth engine
         let audioCtx = null;
         function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
         function playSfx(preset) {
@@ -213,19 +194,15 @@
             }
         }
 
-        // Handle Canvas sizing scaling
         function setupGrid() {
             canvas.width = window.innerWidth;
-            // Deduct sizes of HUD and Bottom bar
             const occupiedHeight = document.getElementById('hud').offsetHeight + document.getElementById('control-panel').offsetHeight;
             canvas.height = window.innerHeight - occupiedHeight;
-
             cellWidth = canvas.width / COLS;
             cellHeight = canvas.height / ROWS;
         }
-        window.addEventListener('resize', () => { setupGrid(); });
+        window.addEventListener('resize', setupGrid);
 
-        // User Interface Actions
         function selectTurret() {
             if (!gameActive) return;
             if (scrap < TURRET_COST) { playSfx('crunch'); return; }
@@ -233,18 +210,14 @@
             btnTurret.style.background = isPlacingTurret ? '#ffff55' : '#ffaa00';
         }
 
-        // BRANCOPTER AUTO DEDEPLOY LOGIC
         function triggerBrancopter() {
             if (!gameActive || score < BRANCOPTER_COST_POINTS) return;
             
-            // Deduct points cost and reset button states
             score -= BRANCOPTER_COST_POINTS;
             scoreDisplay.textContent = score;
             updateShopButtons();
-            
             playSfx('brancopter');
 
-            // Trigger a visual sweep fly-by animation
             animations.push({
                 type: 'brancopter_sweep',
                 x: -150,
@@ -252,15 +225,13 @@
                 speed: 12
             });
 
-            // Auto Deploy 3 random non-overlapping high speed turrets on the field instantly
             let deployedCount = 0;
             let attempts = 0;
             while (deployedCount < 3 && attempts < 40) {
                 attempts++;
                 let r = Math.floor(Math.random() * ROWS);
-                let c = Math.floor(Math.random() * (COLS - 2)); // Keep them slightly away from the far back zombie spawns
+                let c = Math.floor(Math.random() * (COLS - 2));
                 
-                // Confirm cell is clear
                 let occupied = turrets.some(t => t.row === r && t.col === c);
                 if (!occupied) {
                     turrets.push({
@@ -268,7 +239,7 @@
                         x: c * cellWidth + cellWidth / 2,
                         y: r * cellHeight + cellHeight / 2,
                         fireCooldown: Math.random() * 30,
-                        maxCooldown: 25, // Shoots faster than normal turrets!
+                        maxCooldown: 25,
                         hp: 5
                     });
                     deployedCount++;
@@ -276,36 +247,32 @@
             }
         }
 
-        // Capture Tap inputs on the field grid
         function handleCanvasTap(clientX, clientY) {
             initAudio();
             const rect = canvas.getBoundingClientRect();
             const tapX = clientX - rect.left;
             const tapY = clientY - rect.top;
 
-            // Check if user clicked a floating Scrap pickup drop first
             for (let i = collectables.length - 1; i >= 0; i--) {
                 let item = collectables[i];
                 let dist = Math.hypot(tapX - item.x, tapY - item.y);
-                if (dist < 35) {
+                if (dist < 45) {
                     scrap += item.amount;
-                    score += 10; // Boost score too!
+                    score += 10;
                     scrapDisplay.textContent = scrap;
                     scoreDisplay.textContent = score;
                     playSfx('bloop');
                     collectables.splice(i, 1);
                     updateShopButtons();
-                    return; // Intercepted tap
+                    return;
                 }
             }
 
-            // Otherwise check grid cell deployment targeting
-            if (isPlacingTurret) {
+            if (isPlacingTurret && gameActive) {
                 let col = Math.floor(tapX / cellWidth);
                 let row = Math.floor(tapY / cellHeight);
 
                 if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
-                    // Check if already occupied
                     let exists = turrets.some(t => t.row === row && t.col === col);
                     if (!exists) {
                         scrap -= TURRET_COST;
@@ -316,7 +283,7 @@
                             x: col * cellWidth + cellWidth / 2,
                             y: row * cellHeight + cellHeight / 2,
                             fireCooldown: 0,
-                            maxCooldown: 45, // Standard cycle speed
+                            maxCooldown: 45,
                             hp: 3
                         });
 
@@ -334,13 +301,10 @@
             handleCanvasTap(e.touches[0].clientX, e.touches[0].clientY);
         }, { passive: true });
 
-
         function updateShopButtons() {
-            // Turret evaluation
             if (scrap >= TURRET_COST) { btnTurret.classList.remove('disabled'); } 
             else { btnTurret.classList.add('disabled'); }
 
-            // Brancopter availability calculation
             if (score >= BRANCOPTER_COST_POINTS) {
                 btnBrancopter.classList.remove('disabled');
                 brancopterCostLabel.textContent = "READY TO LAUNCH 🚀";
@@ -379,17 +343,23 @@
             generateWaveData();
             gameActive = true;
             updateShopButtons();
-            animate();
+            
+            if (!loopInitialized) {
+                loopInitialized = true;
+                animate();
+            }
         }
 
-        // Infinite Wave Generation Engine with Boss Levels built directly in
+        function restartGame() {
+            gameOverScreen.classList.add('hidden');
+            startGame();
+        }
+
         function generateWaveData() {
             zombiesToSpawn = [];
             spawnCountdown = 40;
 
-            // Level 5, 10, 15, 20... are BOSS levels!
             if (currentWave % 5 === 0) {
-                // Spawn a single mega zombie king boss
                 zombiesToSpawn.push({
                     type: 'boss',
                     hp: 35 + (currentWave * 8),
@@ -400,16 +370,15 @@
                 return;
             }
 
-            // Otherwise standard scale regular waves mathematically
             let count = 6 + (currentWave * 4);
             for (let i = 0; i < count; i++) {
                 let rng = Math.random();
                 if (rng > 0.75 && currentWave >= 4) {
-                    zombiesToSpawn.push({ type: 'tank', hp: 8, speed: 0.6 }); // Slow but heavy
+                    zombiesToSpawn.push({ type: 'tank', hp: 8, speed: 0.6 });
                 } else if (rng > 0.45 && currentWave >= 2) {
-                    zombiesToSpawn.push({ type: 'sprinter', hp: 2, speed: 1.6 }); // Rapid speed runner
+                    zombiesToSpawn.push({ type: 'sprinter', hp: 2, speed: 1.6 });
                 } else {
-                    zombiesToSpawn.push({ type: 'normal', hp: 3, speed: 0.9 }); // Vanilla unit
+                    zombiesToSpawn.push({ type: 'normal', hp: 3, speed: 0.9 });
                 }
             }
         }
@@ -418,7 +387,6 @@
             currentWave++;
             waveDisplay.textContent = currentWave;
             waveClearScreen.classList.add('hidden');
-            // Give wave bonus scrap reward
             scrap += 40;
             scrapDisplay.textContent = scrap;
             updateShopButtons();
@@ -428,12 +396,12 @@
         }
 
         function animate() {
-            if (!gameActive) return;
+            // ALWAYS request the next frame at the start, entirely decoupled from state
+            requestAnimationFrame(animate);
 
-            // Draw Background Field
+            // Draw Background static grid state regardless of activity
             ctx.fillStyle = '#0a1c0a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw Safety Grid Track lines
             ctx.strokeStyle = 'rgba(85, 255, 85, 0.08)'; ctx.lineWidth = 2;
             for (let i = 0; i <= ROWS; i++) {
                 ctx.beginPath(); ctx.moveTo(0, i * cellHeight); ctx.lineTo(canvas.width, i * cellHeight); ctx.stroke();
@@ -441,22 +409,73 @@
             for (let j = 0; j <= COLS; j++) {
                 ctx.beginPath(); ctx.moveTo(j * cellWidth, 0); ctx.lineTo(j * cellWidth, canvas.height); ctx.stroke();
             }
-
-            // Draw Base Wall Indicator line on extreme left boundary
             ctx.fillStyle = '#ff5555'; ctx.fillRect(0, 0, 8, canvas.height);
 
-            // --- 1. PROCESS TURRETS ---
+            // Render existing placements so field doesn't look empty when paused
             turrets.forEach(t => {
-                // Render defense turret pod
                 ctx.fillStyle = '#ffaa00'; ctx.beginPath();
                 ctx.arc(t.x, t.y, Math.min(cellWidth, cellHeight) * 0.3, 0, Math.PI*2); ctx.fill();
-                // Core lens element
                 ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(t.x + 8, t.y, 6, 0, Math.PI*2); ctx.fill();
+            });
 
-                // Weapon firing sequence routines
+            zombies.forEach(z => {
+                ctx.save();
+                if (z.type === 'normal') {
+                    ctx.fillStyle = '#55ff55'; ctx.fillRect(z.x - 20, z.y - 25, 40, 50);
+                    ctx.fillStyle = '#ff3333'; ctx.fillRect(z.x - 12, z.y - 15, 6, 6);
+                } else if (z.type === 'sprinter') {
+                    ctx.fillStyle = '#ccff33'; ctx.fillRect(z.x - 16, z.y - 20, 32, 40);
+                    ctx.fillStyle = '#ff00ff'; ctx.fillRect(z.x - 10, z.y - 12, 5, 5);
+                } else if (z.type === 'tank') {
+                    ctx.fillStyle = '#115511'; ctx.fillRect(z.x - 28, z.y - 30, 56, 60);
+                    ctx.fillStyle = '#ffaa00'; ctx.fillRect(z.x - 18, z.y - 18, 8, 8);
+                } else if (z.type === 'boss') {
+                    ctx.fillStyle = '#331144'; ctx.fillRect(z.x - 45, z.y - 55, 90, 110);
+                    ctx.fillStyle = '#ffff55'; ctx.fillRect(z.x - 30, z.y - 55, 60, 15);
+                    ctx.fillStyle = '#ff0000'; ctx.fillRect(z.x - 25, z.y - 20, 12, 12); ctx.fillRect(z.x + 13, z.y - 20, 12, 12);
+                    let pct = z.hp / z.maxHp;
+                    ctx.fillStyle = '#444'; ctx.fillRect(z.x - 50, z.y - 70, 100, 8);
+                    ctx.fillStyle = '#ff3333'; ctx.fillRect(z.x - 50, z.y - 70, 100 * pct, 8);
+                }
+                ctx.restore();
+            });
+
+            projectiles.forEach(p => {
+                ctx.fillStyle = '#ffff55'; ctx.fillRect(p.x, p.y - 3, 14, 6);
+            });
+
+            collectables.forEach(item => {
+                ctx.fillStyle = 'rgba(255, 255, 85, 0.4)'; ctx.beginPath();
+                ctx.arc(item.x, item.y, 24, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#ffff55'; ctx.beginPath();
+                ctx.arc(item.x, item.y, 16, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#000'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
+                ctx.fillText('⚙️', item.x, item.y + 5);
+            });
+
+            // Fly-by processing always scales regardless of state
+            for (let i = animations.length - 1; i >= 0; i--) {
+                let anim = animations[i];
+                if (anim.type === 'brancopter_sweep') {
+                    if (gameActive) anim.x += anim.speed;
+                    ctx.save();
+                    ctx.fillStyle = '#55ffff'; ctx.fillRect(anim.x - 40, anim.y - 20, 80, 40);
+                    ctx.fillStyle = '#ffffff'; ctx.fillRect(anim.x - 65, anim.y - 30, 130, 6);
+                    ctx.fillStyle = '#ffaa00'; ctx.fillRect(anim.x + 20, anim.y + 5, 25, 10);
+                    ctx.fillStyle = '#000000'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center';
+                    ctx.fillText('B', anim.x, anim.y + 10);
+                    ctx.restore();
+                    if (anim.x > canvas.width + 100) { animations.splice(i, 1); }
+                }
+            }
+
+            // ONLY RUN PHYSICS AND SPAWNS IF GAME IS ACTIVE
+            if (!gameActive) return;
+
+            // 1. TURRET LOGIC
+            turrets.forEach(t => {
                 t.fireCooldown++;
                 if (t.fireCooldown >= t.maxCooldown) {
-                    // Search if a zombie exists on its row line track
                     let targetExists = zombies.some(z => z.row === t.row && z.x > t.x);
                     if (targetExists) {
                         projectiles.push({ x: t.x + 20, y: t.y, speed: 7, row: t.row });
@@ -466,13 +485,12 @@
                 }
             });
 
-            // --- 2. PROCESS WAVE SPAWNS ---
+            // 2. SPAWN SEQUENCER
             if (zombiesToSpawn.length > 0) {
                 spawnCountdown--;
                 if (spawnCountdown <= 0) {
                     let proto = zombiesToSpawn.shift();
                     let assignedRow = Math.floor(Math.random() * ROWS);
-                    
                     zombies.push({
                         x: canvas.width + 40,
                         y: assignedRow * cellHeight + cellHeight / 2,
@@ -483,23 +501,16 @@
                         speed: proto.speed,
                         eatingTimer: 0
                     });
-                    
-                    // Interval gap delays gets shorter on higher counts
                     spawnCountdown = Math.max(25, 90 - (currentWave * 4));
                 }
             }
 
-            // --- 3. PROCESS PROJECTILES ---
+            // 3. PROJECTILE LOGIC
             for (let i = projectiles.length - 1; i >= 0; i--) {
                 let p = projectiles[i];
                 p.x += p.speed;
-                
-                // Draw yellow plasma bolt
-                ctx.fillStyle = '#ffff55'; ctx.fillRect(p.x, p.y - 3, 14, 6);
-
                 if (p.x > canvas.width) { projectiles.splice(i, 1); continue; }
 
-                // Check collision impacts with active target vectors
                 for (let j = zombies.length - 1; j >= 0; j--) {
                     let z = zombies[j];
                     if (z.row === p.row && Math.abs(p.x - z.x) < 30) {
@@ -508,17 +519,14 @@
                         playSfx('crunch');
 
                         if (z.hp <= 0) {
-                            // Drop collectible scrap element at position
                             collectables.push({
                                 x: z.x, y: z.y,
                                 amount: z.type === 'boss' ? 150 : (z.type === 'tank' ? 25 : 15),
                                 pulse: 0
                             });
-                            
                             score += z.type === 'boss' ? 500 : (z.type === 'tank' ? 50 : 20);
                             scoreDisplay.textContent = score;
                             updateShopButtons();
-
                             zombies.splice(j, 1);
                         }
                         break;
@@ -526,18 +534,17 @@
                 }
             }
 
-            // --- 4. PROCESS ZOMBIES ---
+            // 4. ZOMBIE LOGIC
             for (let i = zombies.length - 1; i >= 0; i--) {
                 let z = zombies[i];
-                
-                // Check if colliding or blockaded by a turret pod structure
                 let blocked = false;
+
                 for (let j = turrets.length - 1; j >= 0; j--) {
                     let t = turrets[j];
                     if (t.row === z.row && Math.abs(z.x - t.x) < cellWidth * 0.5) {
                         blocked = true;
                         z.eatingTimer++;
-                        if (z.eatingTimer >= 45) { // Eat turret cycle tick rate
+                        if (z.eatingTimer >= 45) {
                             t.hp--;
                             playSfx('crunch');
                             z.eatingTimer = 0;
@@ -549,31 +556,6 @@
 
                 if (!blocked) { z.x -= z.speed; }
 
-                // Visual Render engine calculations for assets
-                ctx.save();
-                if (z.type === 'normal') {
-                    ctx.fillStyle = '#55ff55'; ctx.fillRect(z.x - 20, z.y - 25, 40, 50); // Zombie block body
-                    ctx.fillStyle = '#ff3333'; ctx.fillRect(z.x - 12, z.y - 15, 6, 6); // Eyes
-                } else if (z.type === 'sprinter') {
-                    ctx.fillStyle = '#ccff33'; ctx.fillRect(z.x - 16, z.y - 20, 32, 40);
-                    ctx.fillStyle = '#ff00ff'; ctx.fillRect(z.x - 10, z.y - 12, 5, 5);
-                } else if (z.type === 'tank') {
-                    ctx.fillStyle = '#115511'; ctx.fillRect(z.x - 28, z.y - 30, 56, 60); // Heavy shell armor
-                    ctx.fillStyle = '#ffaa00'; ctx.fillRect(z.x - 18, z.y - 18, 8, 8);
-                } else if (z.type === 'boss') {
-                    // Draw Mega Zombie King
-                    ctx.fillStyle = '#331144'; ctx.fillRect(z.x - 45, z.y - 55, 90, 110);
-                    ctx.fillStyle = '#ffff55'; ctx.fillRect(z.x - 30, z.y - 55, 60, 15); // Crown unit
-                    ctx.fillStyle = '#ff0000'; ctx.fillRect(z.x - 25, z.y - 20, 12, 12); ctx.fillRect(z.x + 13, z.y - 20, 12, 12);
-                    
-                    // Healthbar tracker overhead for Boss battles
-                    let pct = z.hp / z.maxHp;
-                    ctx.fillStyle = '#444'; ctx.fillRect(z.x - 50, z.y - 70, 100, 8);
-                    ctx.fillStyle = '#ff3333'; ctx.fillRect(z.x - 50, z.y - 70, 100 * pct, 8);
-                }
-                ctx.restore();
-
-                // If zombies reach the left defensive red safety fence lane line boundary
                 if (z.x <= 8) {
                     baseHp -= z.type === 'boss' ? 50 : (z.type === 'tank' ? 20 : 10);
                     baseHp = Math.max(0, baseHp);
@@ -586,64 +568,22 @@
                         document.getElementById('final-wave').textContent = currentWave;
                         document.getElementById('final-score').textContent = score;
                         gameOverScreen.classList.remove('hidden');
-                        return;
                     }
                 }
             }
 
-            // --- 5. PROCESS COLLECTABLE LOOT ITEMS ---
-            collectables.forEach(item => {
-                item.pulse += 0.1;
-                let sizeBounce = 16 + Math.sin(item.pulse) * 4;
-                
-                // Outer gold energetic highlight ring pulse aura
-                ctx.fillStyle = 'rgba(255, 255, 85, 0.4)'; ctx.beginPath();
-                ctx.arc(item.x, item.y, sizeBounce + 8, 0, Math.PI*2); ctx.fill();
-                
-                // Inner core mechanical scrap icon gear shape
-                ctx.fillStyle = '#ffff55'; ctx.beginPath();
-                ctx.arc(item.x, item.y, sizeBounce, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = '#000'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
-                ctx.fillText('⚙️', item.x, item.y + 5);
-            });
-
-            // --- 6. ANIMATE SYSTEM FLY-BY EVENTS (BRANCOPTER SUPPORT) ---
-            for (let i = animations.length - 1; i >= 0; i--) {
-                let anim = animations[i];
-                if (anim.type === 'brancopter_sweep') {
-                    anim.x += anim.speed;
-                    
-                    // Render custom futuristic Brancopter machine frame
-                    ctx.save();
-                    ctx.fillStyle = '#55ffff'; ctx.fillRect(anim.x - 40, anim.y - 20, 80, 40); // Body core
-                    ctx.fillStyle = '#ffffff'; ctx.fillRect(anim.x - 65, anim.y - 30, 130, 6);  // Blade wing spinning
-                    ctx.fillStyle = '#ffaa00'; ctx.fillRect(anim.x + 20, anim.y + 5, 25, 10);   // Forward nose cannon
-                    
-                    // Giant custom neon "B" signature initial display
-                    ctx.fillStyle = '#000000'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center';
-                    ctx.fillText('B', anim.x, anim.y + 10);
-                    ctx.restore();
-
-                    // If it exits the outer field boundaries, remove object instance track
-                    if (anim.x > canvas.width + 100) { animations.splice(i, 1); }
-                }
-            }
-
-            // --- 7. EVALUATE WAVE COMPLETION CRITERIA ---
-            if (zombiesToSpawn.length === 0 && zombies.length === 0 && gameActive) {
+            // 5. EVALUATE WAVE CLEAR STATUS
+            if (zombiesToSpawn.length === 0 && zombies.length === 0) {
                 gameActive = false;
                 if (currentWave % 5 === 0) {
                     clearTitle.textContent = `👑 BOSS SECTOR DEFEATED! 👑`;
-                    clearDesc.innerHTML = `Incredible work, Commander Branson! You completely shattered the Mega Zombie Boss line.<br><br>Take a deep breath and receive your heavy supply cargo configurations.`;
+                    clearDesc.innerHTML = `Incredible work, Commander Branson! You completely shattered the Mega Zombie Boss line.<br><br>Receive your bonus heavy supply cargo allocations.`;
                 } else {
                     clearTitle.textContent = `WAVE ${currentWave} CLEARED!`;
                     clearDesc.textContent = `Excellent defense arrays, Branson. The farmyard borders are currently secured. Prepare strategies for the next wave configuration setup.`;
                 }
                 waveClearScreen.classList.remove('hidden');
-                return;
             }
-
-            requestAnimationFrame(animate);
         }
     </script>
 </body>
