@@ -3,76 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BRAN-MAN ARCADE</title>
+    <title>BRAN-MAN Arcade Room</title>
+    
+    <!-- Dynamic PNG Icon Generator for iPad Home Screen (Arcade Controller) -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const c = document.createElement('canvas'); c.width = 180; c.height = 180;
+            const ctx = c.getContext('2d');
+            // Background
+            ctx.fillStyle = '#0b0b1a'; ctx.fillRect(0, 0, 180, 180);
+            ctx.strokeStyle = '#ffff55'; ctx.lineWidth = 8; ctx.strokeRect(4, 4, 172, 172);
+            // D-Pad (Plus sign)
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(40, 80, 45, 15); ctx.fillRect(55, 65, 15, 45);
+            // Arcade Buttons
+            ctx.fillStyle = '#ff5555'; ctx.beginPath(); ctx.arc(115, 80, 14, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#55ffff'; ctx.beginPath(); ctx.arc(145, 95, 14, 0, Math.PI*2); ctx.fill();
+            
+            const url = c.toDataURL('image/png');
+            let l1 = document.createElement('link'); l1.rel = 'apple-touch-icon'; l1.href = url; document.head.appendChild(l1);
+            let l2 = document.createElement('link'); l2.rel = 'icon'; l2.type = 'image/png'; l2.href = url; document.head.appendChild(l2);
+        });
+    </script>
+
     <style>
         body {
-            background-color: #0c0f1d;
-            color: #fff;
+            margin: 0; padding: 0;
+            background: #0b0b1a; color: white;
             font-family: 'Courier New', Courier, monospace;
-            text-align: center;
-            margin: 0;
-            padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; min-height: 100vh;
+            user-select: none; box-sizing: border-box;
+            border: 10px solid #ffff55;
         }
         h1 {
-            font-size: 3rem;
-            color: #f7b538;
-            text-shadow: 3px 3px 0px #d8315b;
-            margin-top: 40px;
+            font-size: 3.5rem; color: #ffff55;
+            text-shadow: 4px 4px 0px #ff3333, 8px 8px 0px #000;
+            margin-bottom: 10px; text-align: center;
         }
         p {
-            font-size: 1.2rem;
-            letter-spacing: 2px;
-            color: #55ffff;
-            margin-bottom: 40px;
+            font-size: 1.4rem; color: #55ffff;
+            margin-bottom: 40px; text-shadow: 2px 2px 0px #000;
         }
         .menu-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 25px;
-            max-width: 500px;
-            margin: 0 auto;
-            padding-bottom: 60px;
+            display: flex; gap: 30px; flex-wrap: wrap;
+            justify-content: center; max-width: 900px; padding: 20px;
         }
         .game-card {
-            display: block;
-            width: 100%;
-            text-decoration: none;
-            background: #14192f;
-            border: 4px solid;
-            border-radius: 8px;
-            padding: 20px;
-            box-sizing: border-box;
-            transition: transform 0.2s;
+            background: #151530; border: 5px solid #fff;
+            box-shadow: 6px 6px 0px #000; width: 280px;
+            padding: 25px; text-align: center; cursor: pointer;
+            text-decoration: none; color: white;
+            transition: transform 0.1s, background 0.1s;
         }
-        .game-card:hover {
-            transform: scale(1.03);
+        .game-card:active {
+            transform: scale(0.95); background: #222250;
         }
         .game-card.diamond { border-color: #55ffff; }
-        .game-card.space { border-color: #ff55ff; }
-        .game-card.zombie { border-color: #55ff55; }
-
-        .icon {
-            display: block;
-            font-size: 4rem;
-            margin-bottom: 10px;
-        }
-        .game-title {
-            display: block;
-            font-size: 1.8rem;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
+        .game-card.space { border-color: #ff5555; }
+        
+        .icon { font-size: 4rem; margin-bottom: 15px; display: block; }
+        .game-title { font-size: 1.8rem; font-weight: bold; margin-bottom: 10px; display: block; }
         .game-card.diamond .game-title { color: #55ffff; }
         .game-card.space .game-title { color: #ff55ff; }
-        .game-card.zombie .game-title { color: #55ff55; }
-
-        .desc {
-            display: block;
-            font-size: 1rem;
-            color: #ccc;
-            line-height: 1.4;
-        }
+        
+        .desc { font-size: 1rem; color: #ccc; line-height: 1.4; display: block; }
     </style>
 </head>
 <body>
@@ -81,23 +76,25 @@
     <p>SELECT A MISSION, COMMANDER BRANSON</p>
 
     <div class="menu-container">
-
+        
+        <!-- BUTTON FOR DIAMOND DASH -->
         <a href="./Diamond-Dash/" class="game-card diamond">
             <span class="icon">💎</span>
             <span class="game-title">DIAMOND DASH</span>
             <span class="desc">Catch falling diamonds and gold bars in your mining chest before time runs out!</span>
         </a>
 
+        <!-- BUTTON FOR COSMIC BLAST -->
         <a href="./Cosmic-Blast/" class="game-card space">
             <span class="icon">🚀</span>
             <span class="game-title">COSMIC BLAST</span>
-            <span class="desc">Blast flying space asteroids and alien scout ships with laser cannons.</span>
+            <span class="desc">Blast flying space asteroids and alien scout ships with twin laser cannons!</span>
         </a>
-
-        <a href="./Zombie-Defense/" class="game-card zombie">
-            <span class="icon">🧟</span>
-            <span class="game-title">ZOMBIE DEFENSE</span>
-            <span class="desc">Deploy tactical grid turrets, spend scrap upgrades, and call in the Brancopter to hold the line!</span>
+        <!-- BUTTON FOR ZOMBIE DEFENDER -->
+        <a href="./Zombie-Defense/" class="game-card" style="border-color: #55ff55;">
+            <span class="icon">🧟‍♂️</span>
+            <span class="game-title" style="color: #55ff55;">ZOMBIE DEFENDER</span>
+            <span class="desc">Deploy defense turrets and call the legendary BRANCOPTER for automated air support!</span>
         </a>
 
     </div>
