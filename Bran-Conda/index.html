@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select: none;">
+    <title>Bran-Conda Arcade</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        body {
+            background-color: #0b0b1a;
+            color: #ffffff;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            overflow: hidden;
+            padding: 10px;
+        }
+        #arcade-container {
+            width: 100%;
+            max-width: 420px;
+            background: linear-gradient(135deg, #150030 0%, #050015 100%);
+            border: 4px solid #00ffff;
+            border-radius: 12px;
+            box-shadow: 0 0 25px #00ffff, inset 0 0 15px #150030;
+            display: flex;
+            flex-direction: column;
+            padding: 12px;
+            position: relative;
+        }
+        #hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #200040;
+            border: 2px solid #ff00ff;
+            padding: 8px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            text-shadow: 0 0 5px #ff00ff;
+        }
+        .stat-glow {
+            color: #00ffff;
+            text-shadow: 0 0 5px #00ffff;
+        }
+        #canvas-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+            background: #000000;
+            border: 3px solid #ff00ff;
+            border-radius: 6px;
+            box-shadow: inset 0 0 20px rgba(255, 0, 255, 0.4);
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        #control-zone {
+            margin-top: 12px;
+            width: 100%;
+            height: 150px;
+            background: rgba(32, 0, 64, 0.6);
+            border: 2px solid #00ffff;
+            border-radius: 8px;
+            position: relative;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+        }
+        #screen-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(11, 11, 26, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            z-index: 10;
+            border-radius: 8px;
+        }
+        h1 {
+            color: #ff00ff;
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #ff00ff;
+            letter-spacing: 2px;
+        }
+        p {
+            font-size: 0.9rem;
+            line-height: 1.4;
+            margin-bottom: 15px;
+            color: #00ffff;
+        }
+        .btn {
+            background: #ff00ff;
+            color: #fff;
+            border: 3px solid #ffffff;
+            padding: 12px 28px;
+            font-family: inherit;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 6px;
+            box-shadow: 0 0 15px #ff00ff;
+            text-transform: uppercase;
+        }
+        .btn:active {
+            transform: scale(0.95);
+            background: #cc00cc;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="arcade-container">
+        <div id="hud">
+            <div>🐍 <span id="score-val" class="stat-glow">0</span></div>
+            <div>⭐ LV: <span id="level-val" class="stat-glow">1</span></div>
+            <div>🏆 BEST: <span id="best-val" style="color: #ffff00; text-shadow: 0 0 5px #ffff00;">0</span></div>
+        </div>
+
+        <div id="canvas-wrapper">
+            <canvas id="gameCanvas" width="400" height="400"></canvas>
+            
+            <div id="screen-overlay">
+                <h1 id="menu-title">BRAN-CONDA</h1>
+                <p id="menu-desc">Welcome Commander Branson! Guide the legendary neon Bran-Conda. Eat the Golden Rats and dodge electric barriers. Every 5 segments advances to a faster world!</p>
+                <button id="action-btn" class="btn">START RUN</button>
+            </div>
+        </div>
+
+        <div id="control-zone"></div>
+    </div>
+
+    <script>
+        // --- ARCHITECTURAL CONSTANTS & CONFIGS ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreVal = document.getElementById('score-val');
+        const levelVal = document.getElementById('level-val');
+        const bestVal = document.getElementById('best-val');
+        const overlay = document.getElementById('screen-overlay');
+        const menuTitle = document.getElementById('menu-title');
+        const menuDesc = document.getElementById('menu-desc');
+        const actionBtn = document.getElementById('action-btn');
+        const controlZone = document.getElementById('control-zone');
+
+        const GRID_COUNT = 20; 
+        const TILE_SIZE = canvas.width / GRID_COUNT; // 20px per block
+
+        // --- WEB AUDIO API SYNTHESIZER PERFORMANCES ---
+        const AudioEngine = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            playTone(freq, type, duration) {
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+            crunch() { this.playTone(850, 'triangle', 0.12); },
+            levelUp() {
+                this.playTone(523.25, 'sine', 0.15);
+                setTimeout(() => this.playTone(659.25, 'sine', 0.15), 120);
+                setTimeout(() => this.playTone(783.99, 'sine', 0.3), 240);
+            },
+            boom() { this.playTone(120, 'sawtooth', 0.4); }
+        };
+
+        // --- GAME ENGINE STATE INITIALIZATION ---
+        let snake = [];
+        let dir = { x: 1, y: 0 };
+        let nextDir = { x: 1, y: 0 };
+        let rat = { x: 0, y: 0 };
+        let hazards = [];
+        
+        let score = 0;
+        let level = 1;
+        let highscore = parseInt(localStorage.getItem('bran_conda_best')) || 0;
+        bestVal.textContent = highscore;
+
+        let lastTime = 0;
+        let baseDelay = 180; // MUCH slower initial level speed for friendly 7-year-old entry
+        let loopId = null;
+        let isPlaying = false;
+        let animationFrameId = null;
+
+        // --- CONTINUOUS JOYSTICK VECTOR DATA STRUCTURES ---
+        let joyX = controlZone.offsetWidth / 2;
+        let joyY = controlZone.offsetHeight / 2;
+        let joyActive = false;
+        const joyRadius = 45;
+        const centerRadius = 20;
+
+        // --- GRAPHICAL VECTOR PROCEDURAL RENDER PIPELINES ---
+        function drawGridBackground() {
+            ctx.fillStyle = '#050010';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#150030';
+            ctx.lineWidth = 1;
+            for(let i = 0; i <= canvas.width; i += TILE_SIZE) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+            }
+        }
+
+        function drawHazards(tick) {
+            hazards.forEach(h => {
+                ctx.save();
+                // Pulsing electric neon warning glow loops
+                let pulse = Math.sin(tick / 50) * 0.4 + 0.6;
+                ctx.fillStyle = `rgba(255, 0, 50, ${pulse})`;
+                ctx.shadowColor = '#ff0000';
+                ctx.shadowBlur = 10;
+                ctx.fillRect(h.x * TILE_SIZE + 2, h.y * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+                
+                // Tech cross-hatching graphics
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(h.x * TILE_SIZE + 4, h.y * TILE_SIZE + 4);
+                ctx.lineTo(h.x * TILE_SIZE + TILE_SIZE - 4, h.y * TILE_SIZE + TILE_SIZE - 4);
+                ctx.stroke();
+                ctx.restore();
+            });
+        }
+
+        function drawRat() {
+            let rx = rat.x * TILE_SIZE + TILE_SIZE/2;
+            let ry = rat.y * TILE_SIZE + TILE_SIZE/2;
+            let radius = TILE_SIZE/2 - 2;
+
+            ctx.save();
+            ctx.shadowColor = '#ffff00';
+            ctx.shadowBlur = 12;
+            let grad = ctx.createRadialGradient(rx, ry, 2, rx, ry, radius);
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(0.4, '#ffff00');
+            grad.addColorStop(1, '#ff9900');
+            ctx.fillStyle = grad;
+
+            ctx.beginPath();
+            ctx.arc(rx, ry, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Tiny whiskers/ears for Branson's golden rat target
+            ctx.fillStyle = '#ff9900';
+            ctx.beginPath(); ctx.arc(rx - 6, ry - 6, 4, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(rx + 6, ry - 6, 4, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+        }
+
+        function drawBranConda(tick) {
+            for (let i = snake.length - 1; i >= 0; i--) {
+                let segment = snake[i];
+                let sx = segment.x * TILE_SIZE + TILE_SIZE/2;
+                let sy = segment.y * TILE_SIZE + TILE_SIZE/2;
+                ctx.save();
+
+                if (i === 0) { // Animated Head with Eyes and Darting Tongue
+                    ctx.shadowColor = '#00ffff';
+                    ctx.shadowBlur = 14;
+                    ctx.fillStyle = '#00ffff';
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, TILE_SIZE/2, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Eyes tracking forward vector coordinates
+                    ctx.fillStyle = '#000';
+                    let offsetX = dir.x * 4;
+                    let offsetY = dir.y * 4;
+                    ctx.beginPath(); ctx.arc(sx + offsetX - (dir.y * 4), sy + offsetY - (dir.x * 4), 2.5, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(sx + offsetX + (dir.y * 4), sy + offsetY + (dir.x * 4), 2.5, 0, Math.PI * 2); ctx.fill();
+
+                    // Animated Red Tongue
+                    if (Math.floor(tick / 150) % 2 === 0) {
+                        ctx.strokeStyle = '#ff0055';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(sx + dir.x * 10, sy + dir.y * 10);
+                        ctx.lineTo(sx + dir.x * 15, sy + dir.y * 15);
+                        ctx.stroke();
+                    }
+                } else { // Wavy interlocking organic scale loops
+                    let waveOffset = Math.sin((tick / 80) + i * 0.5) * 2;
+                    let visualX = sx + (dir.y * waveOffset);
+                    let visualY = sy + (dir.x * waveOffset);
+                    
+                    let segmentGrad = ctx.createRadialGradient(visualX, visualY, 1, visualX, visualY, TILE_SIZE/2);
+                    segmentGrad.addColorStop(0, '#00ffff');
+                    segmentGrad.addColorStop(0.7, '#0055aa');
+                    segmentGrad.addColorStop(1, '#001133');
+                    
+                    ctx.fillStyle = segmentGrad;
+                    ctx.beginPath();
+                    ctx.arc(visualX, visualY, TILE_SIZE/2 - 1, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+        // --- SUB-ELEMENT CONTINUOUS JOYSTICK INTERACTION LAYER ---
+        const joyCanvas = document.createElement('canvas');
+        joyCanvas.width = controlZone.offsetWidth;
+        joyCanvas.height = 150;
+        joyCanvas.style.position = 'absolute';
+        joyCanvas.style.top = '0';
+        joyCanvas.style.left = '0';
+        controlZone.appendChild(joyCanvas);
+        const jctx = joyCanvas.getContext('2d');
+
+        function renderJoystick() {
+            jctx.clearRect(0, 0, joyCanvas.width, joyCanvas.height);
+            let cx = joyCanvas.width / 2;
+            let cy = joyCanvas.height / 2;
+
+            // Outer Glow Rim Outer Ring
+            jctx.save();
+            jctx.strokeStyle = joyActive ? '#ff00ff' : '#00ffff';
+            jctx.lineWidth = 3;
+            jctx.shadowColor = jctx.strokeStyle;
+            jctx.shadowBlur = 10;
+            jctx.beginPath();
+            jctx.arc(cx, cy, joyRadius, 0, Math.PI * 2);
+            jctx.stroke();
+            jctx.restore();
+
+            // Handle Positioning tracking vectors
+            let hx = cx;
+            let hy = cy;
+            if (joyActive) {
+                hx = joyX;
+                hy = joyY;
+            }
+
+            // Outer Core Track Pad Handle Node
+            jctx.save();
+            let handleGrad = jctx.createRadialGradient(hx, hy, 2, hx, hy, centerRadius);
+            handleGrad.addColorStop(0, '#ffffff');
+            handleGrad.addColorStop(0.4, joyActive ? '#ff00ff' : '#00ffff');
+            handleGrad.addColorStop(1, '#200040');
+            jctx.fillStyle = handleGrad;
+            jctx.shadowColor = joyActive ? '#ff00ff' : '#00ffff';
+            jctx.shadowBlur = 12;
+            jctx.beginPath();
+            jctx.arc(hx, hy, centerRadius, 0, Math.PI * 2);
+            jctx.fill();
+            jctx.restore();
+        }
+
+        // CONTINUOUS HOLD LOGIC PROCESSING
+        function processJoystickInput(clientX, clientY) {
+            let rect = joyCanvas.getBoundingClientRect();
+            let tx = clientX - rect.left;
+            let ty = clientY - rect.top;
+
+            let cx = joyCanvas.width / 2;
+            let cy = joyCanvas.height / 2;
+
+            let dx = tx - cx;
+            let dy = ty - cy;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist > joyRadius) {
+                let angle = Math.atan2(dy, dx);
+                joyX = cx + Math.cos(angle) * joyRadius;
+                joyY = cy + Math.sin(angle) * joyRadius;
+            } else {
+                joyX = tx;
+                joyY = ty;
+            }
+
+            // Evaluate directional thresholds as long as thumb stays pressed down
+            if (dist > 12) {
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    if (dx > 0 && dir.x === 0) nextDir = { x: 1, y: 0 };     // RIGHT
+                    else if (dx < 0 && dir.x === 0) nextDir = { x: -1, y: 0 }; // LEFT
+                } else {
+                    if (dy > 0 && dir.y === 0) nextDir = { x: 0, y: 1 };     // DOWN
+                    else if (dy < 0 && dir.y === 0) nextDir = { x: 0, y: -1 }; // UP
+                }
+            }
+        }
+
+        function handleJoystickStart(e) {
+            joyActive = true;
+            let touch = e.touches ? e.touches[0] : e;
+            processJoystickInput(touch.clientX, touch.clientY);
+        }
+
+        function handleJoystickMove(e) {
+            if (!joyActive) return;
+            let touch = e.touches ? e.touches[0] : e;
+            processJoystickInput(touch.clientX, touch.clientY);
+        }
+
+        function handleJoystickEnd() {
+            // FIXED: The knob graphic returns to center, but nextDir stays locked 
+            // onto the last vector held, allowing effortless continuous tracking!
+            joyActive = false;
+            joyX = joyCanvas.width / 2;
+            joyY = joyCanvas.height / 2;
+        }
+
+        // Bind interactive event hooks across layout nodes
+        controlZone.addEventListener('mousedown', handleJoystickStart);
+        window.addEventListener('mousemove', handleJoystickMove);
+        window.addEventListener('mouseup', handleJoystickEnd);
+
+        controlZone.addEventListener('touchstart', (e) => { e.preventDefault(); handleJoystickStart(e); }, { passive: false });
+        window.addEventListener('touchmove', (e) => { if(joyActive) e.preventDefault(); handleJoystickMove(e); }, { passive: false });
+        window.addEventListener('touchend', handleJoystickEnd);
+
+        // --- PLATFORM CORE WORLD LOGIC CYCLES ---
+        function generateRatPosition() {
+            while (true) {
+                let rx = Math.floor(Math.random() * GRID_COUNT);
+                let ry = Math.floor(Math.random() * GRID_COUNT);
+                let conflict = snake.some(s => s.x === rx && s.y === ry) || hazards.some(h => h.x === rx && h.y === ry);
+                if (!conflict) {
+                    rat = { x: rx, y: ry };
+                    break;
+                }
+            }
+        }
+
+        function spawnHazards() {
+            hazards = [];
+            // Generate dangerous tactical barriers depending on the level depth
+            let count = Math.min(level * 2, 14); 
+            for (let i = 0; i < count; i++) {
+                while (true) {
+                    let hx = Math.floor(Math.random() * GRID_COUNT);
+                    let hy = Math.floor(Math.random() * GRID_COUNT);
+                    
+                    // Keep clear spawn vectors safe from immediate crash zones
+                    let farFromHead = Math.abs(hx - 5) > 3 || Math.abs(hy - 10) > 3;
+                    let conflict = (rat.x === hx && rat.y === hy) || snake.some(s => s.x === hx && s.y === hy) || hazards.some(hz => hz.x === hx && hz.y === hy);
+                    
+                    if (!conflict && farFromHead) {
+                        hazards.push({ x: hx, y: hy });
+                        break;
+                    }
+                }
+            }
+        }
+
+        function launchGame() {
+            snake = [
+                { x: 5, y: 10 },
+                { x: 4, y: 10 },
+                { x: 3, y: 10 }
+            ];
+            dir = { x: 1, y: 0 };
+            nextDir = { x: 1, y: 0 };
+            score = 0;
+            level = 1;
+            baseDelay = 180; // Slower initial update cadence
+            scoreVal.textContent = score;
+            levelVal.textContent = level;
+            
+            generateRatPosition();
+            spawnHazards();
+
+            isPlaying = true;
+            overlay.style.display = 'none';
+            lastTime = performance.now();
+            
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            animationFrameId = requestAnimationFrame(gameHeartbeat);
+        }
+
+        function triggerGameOver() {
+            isPlaying = false;
+            AudioEngine.boom();
+            if (score > highscore) {
+                highscore = score;
+                localStorage.setItem('bran_conda_best', highscore);
+                bestVal.textContent = highscore;
+            }
+            menuTitle.textContent = "GAME OVER";
+            menuDesc.innerHTML = `Legendary run, Branson!<br>You grew the Bran-Conda to level <span class="stat-glow">${level}</span> with <span class="stat-glow">${score}</span> points!`;
+            actionBtn.textContent = "RETRY RUN";
+            overlay.style.display = 'flex';
+        }
+
+        // --- TICK TIME ENGINE CORNERSTONE ---
+        function gameHeartbeat(timestamp) {
+            if (!isPlaying) return;
+
+            animationFrameId = requestAnimationFrame(gameHeartbeat);
+            renderJoystick();
+
+            let elapsed = timestamp - lastTime;
+            if (elapsed >= baseDelay) {
+                lastTime = timestamp - (elapsed % baseDelay);
+
+                // Safe vector execution
+                dir = nextDir;
+                
+                // Head projection positioning
+                let head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+                // Matrix Boundary Wrap Mapping
+                if (head.x < 0) head.x = GRID_COUNT - 1;
+                else if (head.x >= GRID_COUNT) head.x = 0;
+                if (head.y < 0) head.y = GRID_COUNT - 1;
+                else if (head.y >= GRID_COUNT) head.y = 0;
+
+                // Crash Evaluation: Obstacles or Self Collision
+                let selfCrash = snake.some(s => s.x === head.x && s.y === head.y);
+                let hazardCrash = hazards.some(h => h.x === head.x && h.y === head.y);
+                
+                if (selfCrash || hazardCrash) {
+                    triggerGameOver();
+                    return;
+                }
+
+                // Append new head segment position
+                snake.unshift(head);
+
+                // Handle Target Collection
+                if (head.x === rat.x && head.y === rat.y) {
+                    score += 10;
+                    scoreVal.textContent = score;
+                    AudioEngine.crunch();
+                    generateRatPosition();
+
+                    // CRITICAL SPECIFIC REQ: Set levels directly based on length!
+                    // Every 5 items added triggers a level up and dynamically ramps velocity.
+                    let currentLength = snake.length;
+                    let targetLevel = Math.floor((currentLength - 3) / 5) + 1;
+                    
+                    if (targetLevel > level) {
+                        level = targetLevel;
+                        levelVal.textContent = level;
+                        AudioEngine.levelUp();
+                        
+                        // Scaled acceleration loop curve
+                        baseDelay = Math.max(180 - (level * 15), 65); 
+                        spawnHazards();
+                    }
+                } else {
+                    snake.pop();
+                }
+            }
+
+            // Global Frame Drawing
+            drawGridBackground();
+            drawHazards(timestamp);
+            drawRat();
+            drawBranConda(timestamp);
+        }
+
+        // Initial Menu Canvas Projection Initialization
+        actionBtn.addEventListener('click', () => {
+            AudioEngine.init();
+            launchGame();
+        });
+        
+        // Initial drawing of empty background frame grids
+        drawGridBackground();
+        renderJoystick();
+    </script>
+</body>
+</html>
