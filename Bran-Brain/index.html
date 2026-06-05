@@ -1,1 +1,425 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=none">
+    <title>Bran-Brain Trivia - Bran-Man Arcade</title>
+    <style>
+        body {
+            margin: 0; padding: 0;
+            background: #0b0b1a; color: white;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; min-height: 100vh;
+            user-select: none; box-sizing: border-box;
+            border: 10px solid #ffff55; /* Match Main Hub Board Border */
+            overflow-x: hidden;
+        }
+        .arcade-cabinet {
+            width: 90vw; max-width: 600px; text-align: center; padding: 15px;
+        }
+        h1 {
+            font-size: 3.5rem; color: #ffff55;
+            text-shadow: 4px 4px 0px #ff3333, 8px 8px 0px #000;
+            margin: 0 0 10px 0; text-align: center;
+        }
+        .hud {
+            display: flex; justify-content: space-between; flex-wrap: wrap;
+            background: #151530; border: 5px solid #fff;
+            padding: 15px; margin-bottom: 25px; font-weight: bold;
+            font-size: 1.2rem; color: #55ffff; box-shadow: 6px 6px 0px #000;
+        }
+        .hud div { margin: 2px 5px; }
+        .round-banner {
+            font-size: 1.4rem; color: #55ffff; font-weight: bold;
+            margin-bottom: 25px; text-shadow: 2px 2px 0px #000;
+        }
+        .question-box {
+            background: #151530; border: 5px solid #fff;
+            padding: 25px; min-height: 90px; display: flex;
+            align-items: center; justify-content: center;
+            font-size: 1.4rem; font-weight: bold; margin-bottom: 25px;
+            box-shadow: 6px 6px 0px #000; line-height: 1.4;
+        }
+        .options-container {
+            display: flex; flex-direction: column; gap: 20px; width: 100%;
+        }
+        .option-btn {
+            background: #151530; border: 5px solid #fff;
+            color: white; padding: 18px; font-size: 1.3rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold; text-align: left; cursor: pointer;
+            box-shadow: 6px 6px 0px #000; transition: transform 0.1s, background 0.1s;
+        }
+        .option-btn:active { transform: scale(0.97); background: #222250; }
+        
+        /* Interactive feedback matching your card active states */
+        .option-btn.correct { background: #00aa00 !important; border-color: #55ff55 !important; }
+        .option-btn.wrong { background: #aa0000 !important; border-color: #ff5555 !important; }
+        
+        .overlay-screen {
+            background: #151530; border: 5px solid #ff3333;
+            padding: 30px; text-align: center; box-shadow: 6px 6px 0px #000;
+        }
+        .arcade-btn {
+            background: #151530; border: 5px solid #ffff55;
+            color: #ffff55; padding: 12px 24px; font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            text-decoration: none; font-size: 1.2rem; cursor: pointer;
+            box-shadow: 4px 4px 0px #000; display: inline-block; margin-top: 15px;
+        }
+        .arcade-btn:active { transform: scale(0.95); background: #222250; }
+        .arcade-btn.exit { border-color: #ff5555; color: #ff5555; }
+    </style>
+</head>
+<body>
+
+    <div class="arcade-cabinet" id="gameCabinet">
+        <h1>BRAN-BRAIN</h1>
+        
+        <!-- HUD Statistics -->
+        <div class="hud">
+            <div id="hudRound">ROUND: 1/4</div>
+            <div id="hudScore">SCORE: 0</div>
+            <div id="hudStreak">STREAK: 🔥0</div>
+            <div id="hudRule">RISK: SAFE</div>
+            <div id="hudStrikes" style="color: #ff5555; display: none;">MISSES: 0/7</div>
+        </div>
+
+        <div class="round-banner" id="roundBanner">SELECT A RESPONSE, COMMANDER</div>
+        
+        <!-- Question Screen -->
+        <div class="question-box" id="questionBox">INITIALIZING DECK...</div>
+        
+        <!-- Multiple Choice Buttons -->
+        <div class="options-container" id="optionsContainer">
+            <!-- Populated by engine -->
+        </div>
+
+        <div style="margin-top: 40px;">
+            <a href="../index.html" class="arcade-btn exit">EXIT CONSOLE</a>
+        </div>
+    </div>
+
+    <script>
+        // --- 100 QUESTION STORAGE POOL ---
+        const masterQuestionVault = [
+            { q: "What is the largest animal on planet Earth?", a: ["Blue Whale", "African Elephant", "T-Rex"], c: 0 },
+            { q: "Which bird is famous for being able to fly backwards?", a: ["Eagle", "Hummingbird", "Owl"], c: 1 },
+            { q: "How many hearts does an octopus have?", a: ["1", "3", "8"], c: 1 },
+            { q: "What is a group of lions called?", a: ["A pack", "A herd", "A pride"], c: 2 },
+            { q: "Which animal is known as the 'Ship of the Desert'?", a: ["Camel", "Horse", "Cheetah"], c: 0 },
+            { q: "What do bees collect from flowers to make honey?", a: ["Water", "Nectar", "Leaves"], c: 1 },
+            { q: "Which mammal is capable of true flight?", a: ["Flying Squirrel", "Bat", "Kangaroo"], c: 1 },
+            { q: "What color is a polar bear's skin underneath its white fur?", a: ["Pink", "White", "Black"], c: 2 },
+            { q: "Which giant reptile was alive at the same time as the dinosaurs?", a: ["Crocodile", "Kangaroo", "Elephant"], c: 0 },
+            { q: "What is the fastest land animal in the world?", a: ["Lion", "Cheetah", "Horse"], c: 1 },
+            { q: "How do frogs drink water?", a: ["Through their tongue", "Through their skin", "They don't drink water"], c: 1 },
+            { q: "Which of these is the only mammal that can’t jump?", a: ["Elephant", "Sloth", "Hippo"], c: 0 },
+            { q: "What do you call a baby kangaroo?", a: ["Calf", "Joey", "Cub"], c: 1 },
+            { q: "Where is a shrimp's heart located?", a: ["In its tail", "In its chest", "In its head"], c: 2 },
+            { q: "What is the only continent where wild penguins live?", a: ["Africa", "Antarctica", "Europe"], c: 1 },
+            { q: "Which insect can lift up to 50 times its own body weight?", a: ["Ant", "Bee", "Butterfly"], c: 0 },
+            { q: "What is the tallest mammal on Earth?", a: ["Elephant", "Giraffe", "Dinosaur"], c: 1 },
+            { q: "True or False: A snail can sleep for up to three years.", a: ["True", "False"], c: 0 },
+            { q: "What type of animal is a killer whale (orca) actually?", a: ["A shark", "A dolphin", "A fish"], c: 1 },
+            { q: "Which bird is the largest bird in the world but cannot fly?", a: ["Penguin", "Ostrich", "Flamingo"], c: 1 },
+            { q: "Which planet in our solar system is known as the 'Red Planet'?", a: ["Mars", "Jupiter", "Venus"], c: 0 },
+            { q: "What is the closest star to planet Earth?", a: ["The North Star", "The Sun", "Alpha Centauri"], c: 1 },
+            { q: "What force keeps our feet on the ground and stops us from floating?", a: ["Magnetism", "Wind", "Gravity"], c: 2 },
+            { q: "Which planet is famous for its big, beautiful rings?", a: ["Saturn", "Neptune", "Earth"], c: 0 },
+            { q: "What is the hottest planet in our solar system?", a: ["Mercury", "Venus", "Mars"], c: 1 },
+            { q: "How long does it take for the Earth to go around the Sun one time?", a: ["One month", "One week", "One year"], c: 2 },
+            { q: "What creates the bright flash during a thunderstorm?", a: ["Lava", "Lightning", "Shooting Stars"], c: 1 },
+            { q: "What is the name of the galaxy that we live in?", a: ["The Milky Way", "Andromeda", "Starburst"], c: 0 },
+            { q: "Which is the smallest planet in our solar system?", a: ["Mars", "Pluto", "Mercury"], c: 2 },
+            { q: "What makes up about 70% of the Earth's surface?", a: ["Water", "Sand", "Trees"], c: 0 },
+            { q: "What are clouds mostly made of?", a: ["Smoke", "Cotton candy", "Water and ice"], c: 2 },
+            { q: "What shoots out of an erupting volcano?", a: ["Ice cubes", "Lava", "Slime"], c: 1 },
+            { q: "Which planet is known as the 'Ice Giant' and is bright blue?", a: ["Neptune", "Mars", "Saturn"], c: 0 },
+            { q: "How many moons does planet Earth have?", a: ["0", "1", "2"], c: 1 },
+            { q: "What gives plants their green color and helps them absorb sunlight?", a: ["Water", "Chlorophyll", "Soil"], c: 1 },
+            { q: "What is the hardest natural substance found on Earth?", a: ["Gold", "Diamond", "Rock"], c: 1 },
+            { q: "Which gas do humans need to breathe in to survive?", a: ["Oxygen", "Carbon dioxide", "Helium"], c: 0 },
+            { q: "True or False: There is sound in space.", a: ["True", "False"], c: 1 },
+            { q: "What season is it when the Earth is tilted toward the sun?", a: ["Winter", "Summer", "Fall"], c: 1 },
+            { q: "What is the layer of gases surrounding the Earth called?", a: ["The Crust", "The Atmosphere", "The Core"], c: 1 },
+            { q: "How many colors are there in a standard rainbow?", a: ["5", "7", "10"], c: 1 },
+            { q: "Who was the first President of the United States?", a: ["Abraham Lincoln", "George Washington", "Benjamin Franklin"], c: 1 },
+            { q: "How many days are in a normal, non-leap year?", a: ["300", "365", "400"], c: 1 },
+            { q: "Which country is home to the famous ancient Pyramids?", a: ["Egypt", "China", "Mexico"], c: 0 },
+            { q: "What is the capital city of the United States?", a: ["New York City", "Los Angeles", "Washington, D.C."], c: 2 },
+            { q: "How many bones do adult humans have in their bodies?", a: ["100", "206", "500"], c: 1 },
+            { q: "What is the name of the long, famous wall built in China?", a: ["The Huge Wall", "The Great Wall of China", "The Stone Barrier"], c: 1 },
+            { q: "Which fairy tale character lost her glass slipper at the ball?", a: ["Snow White", "Rapunzel", "Cinderella"], c: 2 },
+            { q: "How many continents are there on planet Earth?", a: ["5", "7", "9"], c: 1 },
+            { q: "What is the primary language spoken in Mexico?", a: ["English", "Spanish", "French"], c: 1 },
+            { q: "Which ocean is the largest ocean on Earth?", a: ["Atlantic Ocean", "Indian Ocean", "Pacific Ocean"], c: 2 },
+            { q: "How many standard musical notes are there in the alphabet chain (A to G)?", a: ["7", "10", "12"], c: 0 },
+            { q: "What instrument do you use to measure the temperature outside?", a: ["Compass", "Thermometer", "Telescope"], c: 1 },
+            { q: "What is the name of the frozen water that falls from the sky in winter?", a: ["Rain", "Snow", "Hail"], c: 1 },
+            { q: "How many sides does a classic stop sign have?", a: ["6", "8", "10"], c: 1 },
+            { q: "What is the name of the imaginary line that cuts the Earth into North and South?", a: ["The Prime Meridian", "The Equator", "The Axis"], c: 1 },
+            { q: "Which inventor is famous for perfecting the electric lightbulb?", a: ["Thomas Edison", "Albert Einstein", "Alexander Graham Bell"], c: 0 },
+            { q: "How many standard states make up the United States of America?", a: ["48", "50", "52"], c: 1 },
+            { q: "What do you call a shape that has three sides?", a: ["Square", "Triangle", "Circle"], c: 1 },
+            { q: "What is the name of the ship that brought the Pilgrims to America?", a: ["The Titanic", "The Mayflower", "The Santa Maria"], c: 1 },
+            { q: "What is the baby name for a dog?", a: ["Kitten", "Cub", "Puppy"], c: 2 },
+            { q: "How many legs does a normal spider have?", a: ["6", "8", "10"], c: 1 },
+            { q: "What do caterpillars turn into after their cocoon stage?", a: ["Bees", "Flies", "Butterflies"], c: 2 },
+            { q: "Which animal is famous for being slow and hanging upside down in trees?", a: ["Sloth", "Monkey", "Koala"], c: 0 },
+            { q: "What is a female deer called?", a: ["Buck", "Doe", "Foal"], c: 1 },
+            { q: "What color are emeralds?", a: ["Red", "Blue", "Green"], c: 2 },
+            { q: "How many hours are there in one complete day?", a: ["12", "24", "48"], c: 1 },
+            { q: "What is the name of the liquid that comes out of trees to make maple syrup?", a: ["Sap", "Water", "Juice"], c: 0 },
+            { q: "Which planet is closest to the Sun?", a: ["Venus", "Earth", "Mercury"], c: 2 },
+            { q: "What frozen block floats in the ocean and hit the Titanic?", a: ["Iceberg", "Island", "Coral Reef"], c: 0 },
+            { q: "What do you call a scientist who studies stars and space?", a: ["Biologist", "Astronomer", "Geologist"], c: 1 },
+            { q: "Which color can you mix with blue to make the color green?", a: ["Red", "Yellow", "Purple"], c: 1 },
+            { q: "How many wheels does a traditional unicycle have?", a: ["1", "2", "3"], c: 0 },
+            { q: "What is the name of the character who lives in a pineapple under the sea?", a: ["Patrick", "Squidward", "SpongeBob"], c: 2 },
+            { q: "What do we call a giant hill of sand found in deserts?", a: ["Mountain", "Dune", "Cliff"], c: 1 },
+            { q: "Which gas makes birthday balloons float high in the air?", a: ["Oxygen", "Helium", "Nitrogen"], c: 1 },
+            { q: "What do you call a group of fish swimming together?", a: ["Pack", "School", "Flock"], c: 1 },
+            { q: "Which heavy organ inside your chest pumps blood through your body?", a: ["Brain", "Lungs", "Heart"], c: 2 },
+            { q: "True or False: Tomatoes are classified scientifically as a fruit.", a: ["True", "False"], c: 0 },
+            { q: "What is the name of the place where books are kept for people to borrow?", a: ["Museum", "Library", "Market"], c: 1 },
+            { q: "How many straight sides does a standard square have?", a: ["3", "4", "5"], c: 1 },
+            { q: "What is the name of the hot melted rock while it is still inside a volcano?", a: ["Magma", "Lava", "Ash"], c: 0 },
+            { q: "Which season comes directly after Spring?", a: ["Winter", "Fall", "Summer"], c: 2 },
+            { q: "What instrument do you use to see distant stars up close?", a: ["Microscope", "Telescope", "Periscope"], c: 1 },
+            { q: "What do bees make inside their hives to live in?", a: ["Nests", "Honeycomb", "Webs"], c: 1 },
+            { q: "How many cards are in a standard deck of playing cards?", a: ["40", "52", "64"], c: 1 },
+            { q: "Which massive ocean animal is known for having rows of sharp teeth?", a: ["Dolphin", "Whale", "Shark"], c: 2 },
+            { q: "What is the common name for the sweet liquid found inside fruit?", a: ["Juice", "Water", "Milk"], c: 0 },
+            { q: "How many years are in one single century?", a: ["10", "100", "1000"], c: 1 },
+            { q: "What force pulls objects together, like bringing an apple down from a tree?", a: ["Friction", "Gravity", "Magnetism"], c: 1 },
+            { q: "What do you call a person who flies a spaceship into orbit?", a: ["Pilot", "Astronaut", "Sailor"], c: 1 },
+            { q: "What is the name of the largest country by land size?", a: ["Canada", "China", "Russia"], c: 2 },
+            { q: "Which bird is national symbol of the United States?", a: ["Bald Eagle", "Golden Eagle", "Hawk"], c: 0 },
+            { q: "How many primary colors are there (Red, Yellow, Blue)?", a: ["2", "3", "5"], c: 1 },
+            { q: "What sweet treat is made from cacao beans?", a: ["Vanilla", "Chocolate", "Caramel"], c: 1 },
+            { q: "What is the main ingredient used to make standard bread?", a: ["Rice", "Flour", "Sugar"], c: 1 },
+            { q: "What animal is known for having a trunk?", a: ["Rhino", "Hippo", "Elephant"], c: 2 },
+            { q: "How many items are in a standard 'Dozen' pack of donuts?", a: ["10", "12", "24"], c: 1 },
+            { q: "Which fairy tale character has a nose that grows when he tells a lie?", a: ["Pinocchio", "Peter Pan", "Aladdin"], c: 0 },
+            { q: "What is the name of the shiny silver metal used to make foil wraps?", a: ["Gold", "Iron", "Aluminum"], c: 2 }
+        ];
+
+        let gameDeck = [];
+        let roundDecks = [[], [], [], []];
+        let currentRound = 1;
+        let currentQuestionIdx = 0;
+        let score = 0;
+        let streak = 0;
+        let strikes = 0;
+        let acceptingAnswers = true;
+
+        function initGame() {
+            gameDeck = [...masterQuestionVault];
+            shuffle(gameDeck);
+
+            roundDecks[0] = gameDeck.slice(0, 25);
+            roundDecks[1] = gameDeck.slice(25, 50);
+            roundDecks[2] = gameDeck.slice(50, 75);
+            roundDecks[3] = gameDeck.slice(75, 100);
+
+            currentRound = 1;
+            currentQuestionIdx = 0;
+            score = 0;
+            streak = 0;
+            strikes = 0;
+
+            loadRoundConfiguration();
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function loadRoundConfiguration() {
+            const hudRound = document.getElementById("hudRound");
+            const hudRule = document.getElementById("hudRule");
+            const hudStrikes = document.getElementById("hudStrikes");
+            const roundBanner = document.getElementById("roundBanner");
+
+            hudRound.innerText = `ROUND: ${currentRound}/4`;
+            strikes = 0;
+
+            if (currentRound === 1) {
+                document.body.style.borderColor = "#ffff55"; 
+                roundBanner.innerText = "ROUND 1: RECRUIT WARMUP";
+                hudRule.innerText = "RISK: SAFE";
+                hudStrikes.style.display = "none";
+            } else if (currentRound === 2) {
+                document.body.style.borderColor = "#55ff55"; 
+                roundBanner.innerText = "ROUND 2: ADVANCED CAPTAIN";
+                hudRule.innerText = "RISK: MINUS POINTS";
+                hudStrikes.style.display = "none";
+            } else if (currentRound === 3) {
+                document.body.style.borderColor = "#ffaa00"; 
+                roundBanner.innerText = "ROUND 3: COMMANDER CHALLENGE";
+                hudRule.innerText = "RISK: MINUS + 7 MAX MISSES";
+                hudStrikes.style.display = "block";
+                hudStrikes.innerText = "MISSES: 0/7";
+            } else if (currentRound === 4) {
+                document.body.style.borderColor = "#ff3333"; 
+                roundBanner.innerText = "ROUND 4: ULTRA CHAMPION";
+                hudRule.innerText = "RISK: MINUS + 4 MAX MISSES!";
+                hudStrikes.style.display = "block";
+                hudStrikes.innerText = "MISSES: 0/4";
+            }
+
+            displayQuestion();
+        }
+
+        function displayQuestion() {
+            acceptingAnswers = true;
+            const questionBox = document.getElementById("questionBox");
+            const optionsContainer = document.getElementById("optionsContainer");
+            
+            let currentQuestion = roundDecks[currentRound - 1][currentQuestionIdx];
+
+            questionBox.innerText = `[Q ${currentQuestionIdx + 1}/25] ${currentQuestion.q}`;
+            optionsContainer.innerHTML = "";
+
+            currentQuestion.a.forEach((option, index) => {
+                const button = document.createElement("button");
+                button.className = "option-btn";
+                button.innerText = option;
+                button.addEventListener("click", () => evaluateAnswer(index, button));
+                optionsContainer.appendChild(button);
+            });
+        }
+
+        function evaluateAnswer(selectedIndex, selectedButton) {
+            if (!acceptingAnswers) return;
+            acceptingAnswers = false;
+
+            let currentQuestion = roundDecks[currentRound - 1][currentQuestionIdx];
+            const optionButtons = document.querySelectorAll(".option-btn");
+
+            if (selectedIndex === currentQuestion.c) {
+                selectedButton.classList.add("correct");
+                streak++;
+                score += 10 + (streak * 2);
+            } else {
+                selectedButton.classList.add("wrong");
+                optionButtons[currentQuestion.c].classList.add("correct");
+                streak = 0;
+
+                if (currentRound === 2) {
+                    score = Math.max(0, score - 5);
+                } else if (currentRound === 3) {
+                    score = Math.max(0, score - 10);
+                    strikes++;
+                    document.getElementById("hudStrikes").innerText = `MISSES: ${strikes}/7`;
+                } else if (currentRound === 4) {
+                    score = Math.max(0, score - 15);
+                    strikes++;
+                    document.getElementById("hudStrikes").innerText = `MISSES: ${strikes}/4`;
+                }
+            }
+
+            document.getElementById("hudScore").innerText = `SCORE: ${score}`;
+            document.getElementById("hudStreak").innerText = `STREAK: 🔥${streak}`;
+
+            if (currentRound === 3 && strikes >= 7) {
+                setTimeout(() => triggerRoundFailure("MAX MISSES HIT (7/7)"), 1500);
+                return;
+            }
+            if (currentRound === 4 && strikes >= 4) {
+                setTimeout(() => triggerRoundFailure("MAX MISSES HIT (4/4)"), 1500);
+                return;
+            }
+
+            setTimeout(() => {
+                currentQuestionIdx++;
+                if (currentQuestionIdx >= 25) {
+                    advanceToNextRound();
+                } else {
+                    displayQuestion();
+                }
+            }, 1800);
+        }
+
+        function triggerRoundFailure(reason) {
+            const cabinet = document.getElementById("gameCabinet");
+            streak = 0;
+            currentQuestionIdx = 0;
+            document.getElementById("hudStreak").innerText = "STREAK: 🔥0";
+
+            shuffle(roundDecks[currentRound - 1]);
+
+            cabinet.innerHTML = `
+                <div class="overlay-screen">
+                    <h2 style="color: #ff3333; font-size: 2rem; margin: 0 0 10px 0; text-shadow: 2px 2px 0px #000;">CHALLENGE FAILED</h2>
+                    <p style="font-size: 1.2rem; color: #fff;">${reason}</p>
+                    <p style="color: #ffff55;">Shuffling Round ${currentRound} Question Cards...</p>
+                    <button class="arcade-btn" onclick="reloadCabinetEngine()">TRY AGAIN</button>
+                </div>
+            `;
+        }
+
+        function advanceToNextRound() {
+            currentQuestionIdx = 0;
+            currentRound++;
+
+            if (currentRound > 4) {
+                triggerVictoryScreen();
+            } else {
+                const cabinet = document.getElementById("gameCabinet");
+                cabinet.innerHTML = `
+                    <div class="overlay-screen" style="border-color: #55ff55;">
+                        <h2 style="color: #55ff55; font-size: 2.2rem; margin: 0 0 10px 0; text-shadow: 2px 2px 0px #000;">ROUND CLEARED!</h2>
+                        <p style="font-size: 1.2rem;">Commander Branson advances to Round ${currentRound}!</p>
+                        <button class="arcade-btn" onclick="reloadCabinetEngine()">START ROUND</button>
+                    </div>
+                `;
+            }
+        }
+
+        function reloadCabinetEngine() {
+            document.body.innerHTML = `
+                <div class="arcade-cabinet" id="gameCabinet">
+                    <h1>BRAN-BRAIN</h1>
+                    <div class="hud">
+                        <div id="hudRound">ROUND: 1/4</div>
+                        <div id="hudScore">SCORE: ${score}</div>
+                        <div id="hudStreak">STREAK: 🔥${streak}</div>
+                        <div id="hudRule">RISK: NONE</div>
+                        <div id="hudStrikes" style="color: #ff5555; display: none;">MISSES: 0/7</div>
+                    </div>
+                    <div class="round-banner" id="roundBanner"></div>
+                    <div class="question-box" id="questionBox"></div>
+                    <div class="options-container" id="optionsContainer"></div>
+                    <div style="margin-top: 40px;">
+                        <a href="../index.html" class="arcade-btn exit">EXIT CONSOLE</a>
+                    </div>
+                </div>
+            `;
+            loadRoundConfiguration();
+        }
+
+        function triggerVictoryScreen() {
+            const cabinet = document.getElementById("gameCabinet");
+            cabinet.innerHTML = `
+                <div class="overlay-screen" style="border-color: #ffff55;">
+                    <h2 style="color: #ffff55; font-size: 2.5rem; margin: 0 0 15px 0; text-shadow: 3px 3px 0px #ff3333, 5px 5px 0px #000;">🏆 VICTORY! 🏆</h2>
+                    <p style="font-size: 1.3rem;">All 100 Trivia Modules Fully Conquered!</p>
+                    <p style="font-size: 1.6rem; color: #55ff55; font-weight: bold;">FINAL SCORE: ${score}</p>
+                    <p style="color: #55ffff; font-style: italic;">Rank: Grand Trivia Commander</p>
+                    <button class="arcade-btn" onclick="initGame(); reloadCabinetEngine();">PLAY AGAIN</button>
+                    <a href="../index.html" class="arcade-btn exit">EXIT HUB</a>
+                </div>
+            `;
+        }
+
+        window.onload = initGame;
+    </script>
+</body>
+</html>
