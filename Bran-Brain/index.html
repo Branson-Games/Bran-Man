@@ -160,6 +160,77 @@
     </div>
 
     <script>
+        // --- SYNTHESIZED ARCADE CHIP WEB AUDIO ENGINE ---
+        let audioCtx = null;
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playClickSound() {
+            initAudioContext();
+            if (!audioCtx) return;
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.05);
+        }
+
+        function playCorrectSound() {
+            initAudioContext();
+            if (!audioCtx) return;
+            let now = audioCtx.currentTime;
+            
+            // Note 1 (Crisp mid chime)
+            let osc1 = audioCtx.createOscillator();
+            let gain1 = audioCtx.createGain();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(523.25, now); // C5
+            gain1.gain.setValueAtTime(0.12, now);
+            gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+            osc1.connect(gain1);
+            gain1.connect(audioCtx.destination);
+            osc1.start(now);
+            osc1.stop(now + 0.15);
+
+            // Note 2 (High arcade reward ding)
+            let osc2 = audioCtx.createOscillator();
+            let gain2 = audioCtx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(659.25, now + 0.08); // E5
+            gain2.gain.setValueAtTime(0.12, now + 0.08);
+            gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+            osc2.connect(gain2);
+            gain2.connect(audioCtx.destination);
+            osc2.start(now + 0.08);
+            osc2.stop(now + 0.3);
+        }
+
+        function playWrongSound() {
+            initAudioContext();
+            if (!audioCtx) return;
+            let now = audioCtx.currentTime;
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(180, now);
+            osc.frequency.linearRampToValueAtTime(90, now + 0.3); // Descending groan
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + 0.35);
+        }
+
         // --- 100% EXPLICITLY BULLETPROOF UNIQUE DATA DATASET VAULT (300 COMPONENT PACK) ---
         const qaVault = {
             animals: [
@@ -222,7 +293,7 @@
                 { q: "Where do wild koalas live?", a: ["Australia", "Africa", "Asia"], c: 0, fact: "Koalas eat eucalyptus leaves, which are toxic to most other animals." },
                 { q: "Which bird cannot fly but is an amazing swimmer?", a: ["Penguin", "Eagle", "Sparrow"], c: 0, fact: "Penguin wings act like underwater flippers to 'fly' through ocean water." },
                 { q: "What is a baby bear called?", a: ["Cub", "Puppy", "Kitten"], c: 0, fact: "Bear cubs are born tiny and blind during their mother's winter sleep." },
-                { q: "How many earthworms breathe?", a: ["Through lungs", "Through skin", "Through gills"], c: 1, fact: "Earthworms need moist soil because they absorb oxygen directly through their body skin." },
+                { q: "How do earthworms breathe?", a: ["Through lungs", "Through skin", "Through gills"], c: 1, fact: "Earthworms need moist soil because they absorb oxygen directly through their body skin." },
                 { q: "What is a group of whales called?", a: ["A pod", "A school", "A pack"], c: 0, fact: "Whale pods travel together and communicate across oceans using melodic songs." },
                 { q: "Which mammal sleeps while flying?", a: ["None", "Bat", "Bird"], c: 0, fact: "Bats must land and hang upside down to rest safely; no mammal flies while sleeping." },
                 { q: "What do snakes use their tongues for?", a: ["Tasting the air", "Smelling", "Hearing"], c: 1, fact: "Snakes flick their tongues to catch scent particles in the air to track prey." },
@@ -237,7 +308,7 @@
                 { q: "What is a baby goose called?", a: ["Gosling", "Joey", "Chick"], c: 0, fact: "Goslings imprint on the first moving thing they see, usually their mother." },
                 { q: "Which big cat is the only one that lives in groups?", a: ["Lion", "Tiger", "Cheetah"], c: 0, fact: "Lions form prides to defend territory and hunt large animals safely." },
                 { q: "What do walruses use their husks for?", a: ["Climbing onto ice", "Eating", "Swimming"], c: 0, fact: "They hook their long teeth into ice sheets to pull their heavy bodies out of the water." },
-                { q: "What is a baby sheep called?", a: ["Lamb", "Kid", "Calf"], c: 0, fact: "Lambs recognize their modifications by the unique sound of their bleat call." },
+                { q: "What is a baby sheep called?", a: ["Lamb", "Kid", "Calf"], c: 0, fact: "Lambs recognize their mothers by the unique sound of their bleat call." },
                 { q: "Which sea creature can change its shape to look like rocks?", a: ["Octopus", "Shark", "Crab"], c: 0, fact: "The mimic octopus changes skin texture and color to copy nearby marine objects." },
                 { q: "What do you call a male honeybee?", a: ["Drone", "Worker", "Queen"], c: 0, fact: "Drones do not have stingers and do not gather food for the hive." },
                 { q: "What animal has a horn made of packed hair?", a: ["Rhinoceros", "Deer", "Goat"], c: 0, fact: "Rhino horns are made of keratin, the exact same protein that forms human fingernails." },
@@ -303,7 +374,7 @@
                 { q: "What is the dark center of an egg-shaped space rock path called?", a: ["Orbit", "Line", "Track"], c: 0, fact: "Gravity locks planets into repeating elliptical orbit paths around stars." },
                 { q: "Which planet has a giant storm called the Great Red Spot?", a: ["Jupiter", "Saturn", "Mars"], c: 0, fact: "The Great Red Spot is a hurricane-like storm that has been spinning for over 300 years!" },
                 { q: "What is the name of our moon's phase when it looks like a full circle?", a: ["Full Moon", "New Moon", "Crescent"], c: 0, fact: "A full moon happens when Earth sits right between the Sun and the Moon, lighting up the whole face." },
-                { q: "What is the main component of standard space rocks?", a: ["Ice and dust", "Wood", "Plastic"], c: 0, fact: "Comets are basically giant, dirty snowballs orbiting the sun from deep space edges." },
+                { q: "What are icy comets from deep space basically made of?", a: ["Ice and dust", "Wood", "Plastic"], c: 0, fact: "Comets are basically giant, dirty snowballs orbiting the sun from deep space edges." },
                 { q: "Which planet has the highest mountain volcano named Olympus Mons?", a: ["Mars", "Venus", "Earth"], c: 0, fact: "Olympus Mons is three times taller than Mount Everest, the largest mountain on Earth." },
                 { q: "What is the name of the first human satellite sent into orbit?", a: ["Sputnik", "Apollo", "Hubble"], c: 0, fact: "Sputnik was launched in 1957 and was about the size of a beach ball." },
                 { q: "What causes the ocean tides on Earth?", a: ["The Moon's gravity", "The Wind", "Fish swimming"], c: 0, fact: "The moon's gravity pulls on Earth's water oceans, creating high and low tide waves twice a day." },
@@ -372,7 +443,7 @@
                 { q: "What instrument do you use to measure room temperature?", a: ["Compass", "Thermometer", "Telescope"], c: 1, fact: "Traditional thermometers used liquid mercury, but modern ones use safe digital heat sensors." },
                 { q: "What is the name of the frozen water crystals that fall from winter skies?", a: ["Rain", "Snow", "Hail"], c: 1, fact: "Every single snowflake contains a unique shape pattern, but they all have exactly 6 sides." },
                 { q: "How many straight sides does a classic red stop sign have?", a: ["6", "8", "10"], c: 1, fact: "An eight-sided polygon shape is officially classified as an octagon in geometry." },
-                { q: "What is the name of the imaginary line cutting Earth into top and bottom halves?", a: ["The Prime Meridian", "The Equator", "The Axis"], c: 1, fact: "Countries sitting on the equator experience warm summer temperatures all year long." },
+                { q: "What is the name of the imaginary line cutting Earth into Northern and Southern halves?", a: ["The Prime Meridian", "The Equator", "The Axis"], c: 1, fact: "Countries sitting on the equator experience warm summer temperatures all year long." },
                 { q: "Which inventor perfected the electric lightbulb for homes?", a: ["Thomas Edison", "Albert Einstein", "Alexander Graham Bell"], c: 0, fact: "Edison tried thousands of different wire materials before finding carbonized bamboo worked best!" },
                 { q: "How many individual states make up the USA today?", a: ["48", "50", "52"], c: 1, fact: "Hawaii was the last state to join the union, officially added in the year 1959." },
                 { q: "What do you call a geometric shape that has three sides?", a: ["Square", "Triangle", "Circle"], c: 1, fact: "The interior angles of any triangle always add up to exactly 180 degrees." },
@@ -426,7 +497,7 @@
                 { q: "What is the name of the sweet fluid bees produce inside boxes?", a: ["Honey", "Milk", "Sap"], c: 0, fact: "Honey is highly unique because it never spoils; edible honey was found in 3,000-year-old tombs!" },
                 { q: "What do you call the written story text inside a theatrical play?", a: ["Script", "Novel", "Poem"], c: 0, fact: "A script contains both lines for actors to speak and directions on how to move." },
                 { q: "Which body system processes foods into nutrient energy?", a: ["Digestive", "Nervous", "Skeletal"], c: 0, fact: "Digestion starts in the mouth where saliva begins breaking down starches." },
-                { q: "How many dimes equal one single dollar bill value?", a: ["10", "5", "20"], c: 0, fact: "Dimes are worth 10 cents each, making them the thinnest coin currency in circulation." },
+                { q: "How many dimes equal one single dollar bill value?", a: ["10", "5", "20"], c: 1, fact: "Dimes are worth 10 cents each, making them the thinnest coin currency in circulation." },
                 { q: "What is the primary capital city of France?", a: ["Paris", "London", "Rome"], c: 0, fact: "Paris is famous for the Eiffel Tower, built out of iron bars in 1889." }
             ]
         };
@@ -442,8 +513,6 @@
         let acceptingAnswers = true;
         let countdownTimer = null;
         let activeCategoryKey = "";
-        
-        // Memory logging track array to record previous player inputs for back navigation support
         let historyTrackingLog = []; 
 
         window.onload = function() {
@@ -469,11 +538,13 @@
         }
 
         function clearSavedGameSession() {
+            playWrongSound();
             localStorage.removeItem("branpedia_save_slot");
             document.getElementById("resumeBox").style.display = "none";
         }
 
         function restoreSavedGameSession() {
+            playClickSound();
             const savedGame = localStorage.getItem("branpedia_save_slot");
             if (!savedGame) return;
 
@@ -497,13 +568,14 @@
             score = state.score;
             streak = state.streak;
             strikes = 0;
-            historyTrackingLog = []; // Flush log on new round transitions
+            historyTrackingLog = [];
 
             setupActiveCabinetLayout();
             loadRoundConfiguration();
         }
 
         function launchGameEngine(categoryKey) {
+            playClickSound();
             activeCategoryKey = categoryKey;
             
             if (categoryKey === 'branpedia') {
@@ -572,7 +644,6 @@
 
             hudRound.innerText = `ROUND: ${currentRound}/4`;
             
-            // Re-sync UI totals if rolling back boundaries dynamically
             document.getElementById("hudScore").innerText = `SCORE: ${score}`;
             document.getElementById("hudStreak").innerText = `STREAK: 🔥${streak}`;
 
@@ -615,7 +686,6 @@
             factoidBox.style.display = "none";
             nextBtn.style.display = "none";
             
-            // Hide back controls if locked onto Card 1 to prevent array index boundary breakage
             if (currentQuestionIdx > 0) {
                 backBtn.style.display = "inline-block";
             } else {
@@ -626,14 +696,12 @@
             questionBox.innerText = `[CARD ${currentQuestionIdx + 1}/25]\n${currentQuestionData.q}`;
             optionsContainer.innerHTML = "";
 
-            // DETECT IF THIS SPECIFIC CARD HAS AN ARCHIVED PLAY HISTORY RECORD
             let pastRecord = historyTrackingLog.find(h => h.round === currentRound && h.qIdx === currentQuestionIdx);
 
             if (pastRecord) {
-                // ARCHIVE LOOKUP ACCESSED: Render locked screen with past answer feedback static state
                 acceptingAnswers = false;
-                backBtn.style.display = "inline-block"; // Keep back navigation visible
-                nextBtn.style.display = "inline-block"; // Expose next button to allow scrolling forward again
+                backBtn.style.display = "inline-block"; 
+                nextBtn.style.display = "inline-block"; 
 
                 currentQuestionData.a.forEach((optionString, optionIdx) => {
                     const button = document.createElement("button");
@@ -656,7 +724,6 @@
                 }
 
             } else {
-                // STANDARD LIVE PATH ACCESSED: Build reactive action choices
                 acceptingAnswers = true;
                 currentQuestionData.a.forEach((optionString, optionIdx) => {
                     const button = document.createElement("button");
@@ -678,12 +745,10 @@
             const nextBtn = document.getElementById("nextPacingBtn");
             const backBtn = document.getElementById("backNavBtn");
 
-            // Hide back button while showing active factoid to prevent mid-transition clock issues
             backBtn.style.display = "none"; 
 
             let answerWasCorrect = (selectedIdx === currentQuestionData.c);
             
-            // Record state metrics straight into local tracking history arrays
             historyTrackingLog.push({
                 round: currentRound,
                 qIdx: currentQuestionIdx,
@@ -695,11 +760,13 @@
             });
 
             if (answerWasCorrect) {
+                playCorrectSound();
                 selectedButtonElement.classList.add("correct");
                 streak++;
                 score += 10 + (streak * 2);
                 factoidBox.innerHTML = `<strong style="color: #55ff55;">✅ CORRECT!</strong><br>${currentQuestionData.fact}`;
             } else {
+                playWrongSound();
                 selectedButtonElement.classList.add("wrong");
                 choiceButtons[currentQuestionData.c].classList.add("correct");
                 streak = 0;
@@ -735,30 +802,26 @@
                 return;
             }
 
-            // MODIFIED STEP: 15-second automatic progression buffer timeout
+            // 15-second automatic progression loop buffer window
             countdownTimer = setTimeout(() => {
                 executeNextStepSequence();
             }, 15000); 
         }
 
-        // --- BACKWARDS TRAVERSAL SYSTEM CONTROLLER ---
         function navigateBackwardOneCard() {
+            playClickSound();
             if (countdownTimer) clearTimeout(countdownTimer);
-            if (currentQuestionIdx <= 0) return; // Hard wall security check
+            if (currentQuestionIdx <= 0) return; 
 
             currentQuestionIdx--;
 
-            // Find historical metrics recorded BEFORE this target card was executed
             let targetHistoryIdx = historyTrackingLog.findIndex(h => h.round === currentRound && h.qIdx === currentQuestionIdx);
             
             if (targetHistoryIdx !== -1) {
                 let hist = historyTrackingLog[targetHistoryIdx];
-                // Restore points/streaks precisely to matching chronological parameters
                 score = hist.savedScore;
                 streak = hist.savedStreak;
                 strikes = hist.savedStrikes;
-                
-                // Truncate everything forward from that tracking branch checkpoint 
                 historyTrackingLog = historyTrackingLog.slice(0, targetHistoryIdx);
             }
 
@@ -766,6 +829,7 @@
         }
 
         function bypassPacingDelayTimer() {
+            playClickSound();
             if (countdownTimer) clearTimeout(countdownTimer);
             executeNextStepSequence();
         }
@@ -780,18 +844,20 @@
         }
 
         function triggerRoundSpecificReset() {
+            playWrongSound();
             if (countdownTimer) clearTimeout(countdownTimer);
             
             shuffleDeck(roundDecks[currentRound - 1]);
             currentQuestionIdx = 0;
             strikes = 0;
             streak = 0;
-            historyTrackingLog = []; // Wipe historical entries for a clean run
+            historyTrackingLog = []; 
             
             loadRoundConfiguration();
         }
 
         function triggerRoundResetSequence(alertReason) {
+            playWrongSound();
             const router = document.getElementById("screenRouter");
             streak = 0;
             currentQuestionIdx = 0;
@@ -813,9 +879,10 @@
         }
 
         function advanceNextRoundPhase() {
+            playCorrectSound();
             currentQuestionIdx = 0;
             currentRound++;
-            historyTrackingLog = []; // Reset navigation buffer tracking upon moving into next sector phase
+            historyTrackingLog = []; 
 
             if (currentRound <= 4) {
                 const gameSessionState = {
@@ -863,11 +930,13 @@
         }
 
         function restoreActiveFrameElements() {
+            playClickSound();
             setupActiveCabinetLayout();
             loadRoundConfiguration();
         }
 
         function exitToMainMenuHub() {
+            playClickSound();
             if (countdownTimer) clearTimeout(countdownTimer);
             location.reload();
         }
